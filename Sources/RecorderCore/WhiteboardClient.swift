@@ -49,3 +49,36 @@ public struct WhiteboardClient {
         }
     }
 }
+
+extension WhiteboardClient {
+    public func upload(_ recording: RecordingUpload) async throws -> UploadedRecording {
+        let title = recording.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, title.count <= 255 else { throw APIError.invalidTitle }
+        guard recording.recordedAt <= Date() else { throw APIError.recordedAtInFuture }
+
+        var body = MultipartBody()
+        body.addFile("audio", url: recording.audioURL,
+                     filename: recording.audioURL.lastPathComponent, contentType: "audio/mp4")
+        body.addField("workspaceId", recording.workspaceID)
+        body.addField("title", title)
+        body.addField("recordedAt", ISO8601.string(from: recording.recordedAt))
+        body.addField("language", recording.language)
+        body.addField("sharingMode", recording.sharingMode)
+        if !recording.tags.isEmpty {
+            let json = try JSONEncoder().encode(recording.tags)
+            body.addField("tags", String(decoding: json, as: UTF8.self))
+        }
+
+        let envelope = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wbr-\(UUID().uuidString).multipart")
+        try body.write(to: envelope)
+        defer { try? FileManager.default.removeItem(at: envelope) }
+
+        var request = try makeRequest("recordings", method: "POST")
+        request.setValue(body.contentType, forHTTPHeaderField: "Content-Type")
+
+        let (data, response) = try await session.upload(for: request, fromFile: envelope)
+        try check(response, data)
+        return try decode(data)
+    }
+}
