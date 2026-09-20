@@ -42,9 +42,28 @@ final class MenuBarController: NSObject {
         handleLeftClick()
     }
 
+    // Temporary capture toggle, replaced by the recording flow in Task 13.
+    private let capture = CoreAudioCapture()
+    private var isCapturing = false
+
     /// Wired to the recording flow in Task 13.
     private func handleLeftClick() {
-        NSLog("left click")
+        do {
+            if isCapturing {
+                let url = try capture.stop()
+                isCapturing = false
+                setIcon(.idle)
+                NSLog("capture terminée : \(capture.diagnostics.map(String.init(describing:)) ?? "nil")")
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            } else {
+                _ = try capture.start()
+                isCapturing = true
+                setIcon(.recording)
+                NSLog("système capté : \(capture.isSystemAudioAvailable)")
+            }
+        } catch {
+            NSLog("capture error: \(error)")
+        }
     }
 
     @objc private func showPreferences() {
