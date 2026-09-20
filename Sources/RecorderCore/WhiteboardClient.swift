@@ -2,8 +2,8 @@ import Foundation
 
 public struct WhiteboardClient {
     public let baseURL: URL
-    private let apiKey: () -> String?
-    private let session: HTTPSession
+    let apiKey: () -> String?
+    let session: HTTPSession
 
     public init(baseURL: URL, apiKey: @escaping () -> String?, session: HTTPSession = URLSession.shared) {
         self.baseURL = baseURL
