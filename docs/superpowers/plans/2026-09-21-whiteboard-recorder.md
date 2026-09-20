@@ -671,12 +671,12 @@ private func makeRecording(in directory: URL, tags: [Tag] = []) throws -> Record
     )
 }
 
-private func withTemporaryDirectory(_ body: (URL) throws -> Void) rethrows {
+private func withTemporaryDirectory(_ body: (URL) async throws -> Void) async rethrows {
     let directory = FileManager.default.temporaryDirectory
         .appendingPathComponent(UUID().uuidString, isDirectory: true)
     try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: directory) }
-    try body(directory)
+    try await body(directory)
 }
 
 @Test func uploadSendsTheDeclaredFieldsAndNothingElse() async throws {
@@ -684,19 +684,14 @@ private func withTemporaryDirectory(_ body: (URL) throws -> Void) rethrows {
     var request: URLRequest?
     var result: UploadedRecording?
 
-    try withTemporaryDirectory { directory in
+    try await withTemporaryDirectory { directory in
         let session = FakeSession()
         session.nextStatus = 201
         session.nextBody = Data(#"{"id":"rec-1","noteId":"note-1","noteSlug":"daily-2026-09-17","status":"pending"}"#.utf8)
         let client = WhiteboardClient(baseURL: base, apiKey: { "wb_test" }, session: session)
         let recording = try makeRecording(in: directory, tags: [Tag(label: "japon", color: "red", count: 10)])
 
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            result = try? await client.upload(recording)
-            semaphore.signal()
-        }
-        semaphore.wait()
+        result = try await client.upload(recording)
 
         let call = try #require(session.calls.first)
         request = call.request
@@ -724,19 +719,14 @@ private func withTemporaryDirectory(_ body: (URL) throws -> Void) rethrows {
 }
 
 @Test func tagsFieldIsOmittedWhenNoTagIsSelected() async throws {
-    try withTemporaryDirectory { directory in
+    try await withTemporaryDirectory { directory in
         let session = FakeSession()
         session.nextStatus = 201
         session.nextBody = Data(#"{"id":"rec-1","noteSlug":"daily","status":"pending"}"#.utf8)
         let client = WhiteboardClient(baseURL: base, apiKey: { "wb_test" }, session: session)
         let recording = try makeRecording(in: directory)
 
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            _ = try? await client.upload(recording)
-            semaphore.signal()
-        }
-        semaphore.wait()
+        _ = try await client.upload(recording)
 
         let envelope = try String(contentsOf: #require(session.calls.first?.uploadedFile), encoding: .utf8)
         #expect(!envelope.contains(#"name="tags""#))
