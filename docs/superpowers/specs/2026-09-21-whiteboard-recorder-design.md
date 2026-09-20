@@ -20,7 +20,7 @@ n'est pas repris tel quel : nouveau dépôt, historique neuf, l'ancien reste com
 - Choix, avant chaque enregistrement : workspace, titre, date de réunion, langue,
   visibilité, tags.
 - Upload en un appel vers `POST /recordings`.
-- Préférences : clé API, workspace par défaut, URLs, IP ESP32, dossier de sauvegarde.
+- Préférences : clé API, workspace par défaut, URL de l'API, IP ESP32, dossier de sauvegarde.
 - Intégration ESP32 (écran rouge pendant l'enregistrement), désactivable.
 
 ### Hors périmètre — décidé explicitement
@@ -115,9 +115,10 @@ sources et aucun post-traitement à l'arrêt.
 3. Un `AudioDeviceIOProc` sur l'agrégat reçoit les deux flux dans le même appel. On
    les somme en mono avec un gain par source, on écrête, on convertit via
    `AVAudioConverter`.
-4. Écriture dans un `AVAudioFile` : AAC mono 32 kHz, environ 64 kb/s, conteneur
-   `.m4a` — de l'ordre de 28 Mo par heure, très loin de la limite de 1 Gio, et sans
-   perte utile pour de la transcription.
+4. Écriture dans un `AVAudioFile` : AAC mono à 64 kb/s, conteneur `.m4a`, à la
+   fréquence d'échantillonnage du device agrégé (48 kHz en général) — on évite ainsi
+   un rééchantillonnage inutile. De l'ordre de 28 Mo par heure, très loin de la
+   limite de 1 Gio, et sans perte utile pour de la transcription.
 
 **Dégradation** : si le tap ne peut pas être créé ou si la permission audio est
 refusée, l'agrégat est construit avec le micro seul et l'enregistrement a lieu quand
@@ -181,9 +182,12 @@ mémoire avec `Data(contentsOf:)` : intenable pour une réunion longue.
 
 Dans le Keychain, service `com.kepochan.whiteboard-recorder` : la clé API seule.
 
-Dans UserDefaults : workspace par défaut, URL de l'API, URL du front, IP de l'ESP32,
-dossier de sauvegarde, et les derniers choix (workspace, langue, visibilité). Les
-tags ne sont jamais pré-remplis.
+Dans UserDefaults : workspace par défaut, URL de l'API, IP de l'ESP32, dossier de
+sauvegarde, et les derniers choix (workspace, langue, visibilité). Les tags ne sont
+jamais pré-remplis.
+
+L'URL du front n'est pas un réglage : l'app n'ouvre jamais de note, donc rien ne la
+lirait. À réintroduire le jour où l'app proposera d'ouvrir la note produite.
 
 La fenêtre Préférences propose un bouton **Tester** qui appelle `GET /workspaces` et
 affiche le nombre de workspaces trouvés, ou l'erreur.
@@ -193,7 +197,9 @@ développement, la clé est lue depuis la configuration MCP existante de la mach
 
 ## 8. Tests
 
-TDD sur `RecorderCore`, avec `URLProtocol` bouchonné.
+TDD sur `RecorderCore`, avec un double de `HTTPSession` injecté — même intention
+qu'un `URLProtocol` bouchonné (observer la requête réellement construite), sans sa
+fragilité face à `upload(for:fromFile:)`.
 
 - `MultipartBody` : octets produits, frontières, en-têtes de partie, champ `tags`
   omis quand la sélection est vide.
