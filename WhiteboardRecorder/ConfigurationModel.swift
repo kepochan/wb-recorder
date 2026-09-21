@@ -17,6 +17,9 @@ final class ConfigurationModel: ObservableObject {
     let systemAudioAvailable: Bool
     private let preferences: Preferences
     private let client: WhiteboardClient
+    /// Bumped on every `loadTags()` call so a stale response — from a workspace
+    /// switch that has since been superseded — can never overwrite a newer one.
+    private var tagLoadGeneration = 0
 
     init(startedAt: Date, preferences: Preferences, client: WhiteboardClient, systemAudioAvailable: Bool) {
         self.recordedAt = startedAt
@@ -64,12 +67,20 @@ final class ConfigurationModel: ObservableObject {
     func loadTags() async {
         guard !workspaceID.isEmpty else { return }
         selectedTags = []
+
+        tagLoadGeneration += 1
+        let generation = tagLoadGeneration
+        let requestedWorkspaceID = workspaceID
+
         do {
-            availableTags = try await client.listTags(workspaceID: workspaceID)
+            let tags = try await client.listTags(workspaceID: requestedWorkspaceID)
                 .sorted { ($0.count ?? 0) > ($1.count ?? 0) }
+            guard generation == tagLoadGeneration, workspaceID == requestedWorkspaceID else { return }
+            availableTags = tags
         } catch {
             // A key scoped to recordings only may be refused here; the field
             // simply stays empty rather than blocking the recording.
+            guard generation == tagLoadGeneration, workspaceID == requestedWorkspaceID else { return }
             availableTags = []
         }
     }
