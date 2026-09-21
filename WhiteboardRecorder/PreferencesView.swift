@@ -49,7 +49,10 @@ struct PreferencesView: View {
             }
 
             if let result = model.testResult {
-                Text(result).font(.caption)
+                Label(result, systemImage: model.testSucceeded == true
+                      ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(model.testSucceeded == true ? Color.green : Color.red)
             }
             if let error = model.saveError {
                 Text(error).font(.caption).foregroundStyle(.red)

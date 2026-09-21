@@ -11,6 +11,9 @@ final class PreferencesModel: ObservableObject {
     @Published var workspaces: [Workspace] = []
     @Published var defaultWorkspaceID: String = ""
     @Published var testResult: String?
+    /// Whether the last test passed, so the result can be shown as a verdict
+    /// rather than as a sentence the user has to parse.
+    @Published var testSucceeded: Bool?
     /// Set by `save()` when the API key couldn't be written to the Keychain
     /// or the API URL was rejected. Both failures are silent otherwise —
     /// this is the one place the user is told why nothing (or only part of
@@ -39,6 +42,7 @@ final class PreferencesModel: ObservableObject {
         saveFolder = preferences.saveFolder
         defaultWorkspaceID = preferences.defaultWorkspaceID ?? ""
         testResult = nil
+        testSucceeded = nil
         saveError = nil
     }
 
@@ -101,10 +105,13 @@ final class PreferencesModel: ObservableObject {
             let client = WhiteboardClient(baseURL: preferences.apiBaseURL, apiKey: { [keychain] in keychain.read() })
             workspaces = try await client.listWorkspaces()
             testResult = "Clé valide — \(workspaces.count) workspace(s)."
+            testSucceeded = true
         } catch let error as APIError {
             testResult = error.message
+            testSucceeded = false
         } catch {
             testResult = error.localizedDescription
+            testSucceeded = false
         }
     }
 
