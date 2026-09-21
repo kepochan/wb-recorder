@@ -5,6 +5,7 @@ struct ConfigurationView: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
     let onClose: () -> Void
+    let onSaveCopy: () -> Void
 
     var body: some View {
         Group {
@@ -118,6 +119,9 @@ struct ConfigurationView: View {
 
             HStack {
                 Button("Annuler", role: .destructive, action: onCancel)
+                // The upload deletes the local file on success, so keeping a
+                // copy has to be offered here, while the file still exists.
+                Button("Enregistrer une copie…", action: onSaveCopy)
                 Spacer()
                 Button("OK", action: onConfirm)
                     .keyboardShortcut(.defaultAction)

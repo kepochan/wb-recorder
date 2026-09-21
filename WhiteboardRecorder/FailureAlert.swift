@@ -182,6 +182,32 @@ extension MenuBarController {
         alert.runModal()
     }
 
+    /// Saving from the configuration window **copies**: the upload that follows
+    /// still needs the original, and the flow deletes it only once the upload
+    /// has actually succeeded.
+    func saveCopyOfCurrentFile(named title: String) {
+        guard let source = currentFileURL else {
+            showAlert(title: "Rien à enregistrer",
+                      message: "L'enregistrement n'est plus disponible.")
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.title = "Enregistrer une copie de l'audio"
+        panel.directoryURL = preferences.saveFolder
+        panel.nameFieldStringValue = "\(fileNameSlug(for: title)).m4a"
+        panel.allowedContentTypes = [.mpeg4Audio]
+
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        do {
+            try? FileManager.default.removeItem(at: destination)
+            try FileManager.default.copyItem(at: source, to: destination)
+        } catch {
+            showAlert(title: "Copie impossible",
+                      message: "L'enregistrement n'a pas pu être copié : \(error.localizedDescription)")
+        }
+    }
+
     private func suggestedFileName() -> String {
         // `.recording` and `.uploading` matter because a quit mid-flight also
         // rescues a file, and it deserves the meeting's name too.
@@ -193,14 +219,19 @@ extension MenuBarController {
             configured = nil
         }
 
-        let title = configured ?? lastFailedTitle ?? "reunion"
+        return fileNameSlug(for: configured ?? lastFailedTitle ?? "reunion")
+    }
+
+    /// A file name built from the meeting's title and the instant it started.
+    func fileNameSlug(for title: String) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd-HHmm"
-        let slug = title
+        let cleaned = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let slug = (cleaned.isEmpty ? "reunion" : cleaned)
             .lowercased()
             .replacingOccurrences(of: " ", with: "-")
             .filter { $0.isLetter || $0.isNumber || $0 == "-" }
-        return "\(slug)-\(formatter.string(from: startedAt ?? Date()))"
+        return "\(slug.isEmpty ? "reunion" : slug)-\(formatter.string(from: startedAt ?? Date()))"
     }
 
     func uniqueURL(in folder: URL, name: String) -> URL {

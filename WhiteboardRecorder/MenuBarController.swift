@@ -205,6 +205,9 @@ final class MenuBarController: NSObject {
             onCancel: { [weak self] in
                 guard let self else { return }
                 self.apply(self.flow.handle(.configurationCancelled))
+            },
+            onSaveCopy: { [weak self] title in
+                self?.saveCopyOfCurrentFile(named: title)
             }
         )
         configurationWindow = controller

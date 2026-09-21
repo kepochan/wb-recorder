@@ -11,7 +11,8 @@ final class ConfigurationWindowController: NSWindowController {
          systemAudioAvailable: Bool,
          deviceWatchArmed: Bool,
          onConfirm: @escaping (RecordingConfiguration) -> Void,
-         onCancel: @escaping () -> Void) {
+         onCancel: @escaping () -> Void,
+         onSaveCopy: @escaping (String) -> Void) {
         let model = ConfigurationModel(startedAt: startedAt, preferences: preferences,
                                        client: client, systemAudioAvailable: systemAudioAvailable,
                                        deviceWatchArmed: deviceWatchArmed)
@@ -45,6 +46,9 @@ final class ConfigurationWindowController: NSWindowController {
             },
             onClose: { [weak self] in
                 self?.close()
+            },
+            onSaveCopy: {
+                onSaveCopy(model.title)
             }
         ))
         self.content = content
