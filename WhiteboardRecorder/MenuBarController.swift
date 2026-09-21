@@ -62,6 +62,11 @@ final class MenuBarController: NSObject {
                 NSLog("système capté : \(capture.isSystemAudioAvailable)")
             }
         } catch {
+            // stop() throws when the recording must be rejected, and it has
+            // already torn everything down. Falling back to idle keeps the
+            // toggle usable instead of wedging it in the stop branch.
+            isCapturing = false
+            setIcon(.idle)
             NSLog("capture error: \(error)")
         }
     }
