@@ -8,10 +8,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// started by hand instead of through NSApplicationMain.
     static func main() {
         let application = NSApplication.shared
+        installEditMenu(on: application)
         let delegate = AppDelegate()
         application.delegate = delegate
         application.setActivationPolicy(.accessory)
         application.run()
+    }
+
+    /// An LSUIElement app has no menu bar of its own, and without an Edit menu
+    /// AppKit never routes ⌘X / ⌘C / ⌘V to the focused text field — pasting an
+    /// API key would only work through the right-click menu.
+    private static func installEditMenu(on application: NSApplication) {
+        let edit = NSMenu(title: "Édition")
+        edit.addItem(withTitle: "Annuler", action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: "Rétablir", action: Selector(("redo:")), keyEquivalent: "Z")
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Couper", action: Selector(("cut:")), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copier", action: Selector(("copy:")), keyEquivalent: "c")
+        edit.addItem(withTitle: "Coller", action: Selector(("paste:")), keyEquivalent: "v")
+        edit.addItem(withTitle: "Tout sélectionner", action: Selector(("selectAll:")), keyEquivalent: "a")
+
+        let editItem = NSMenuItem()
+        editItem.submenu = edit
+        let main = NSMenu()
+        main.addItem(editItem)
+        application.mainMenu = main
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

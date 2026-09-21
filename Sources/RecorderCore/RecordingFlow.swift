@@ -23,10 +23,15 @@ public enum IconState: Equatable, Sendable { case idle, recording, uploading }
 
 public enum RecordingState: Equatable {
     case idle
+    /// Capturing. The configuration is asked for once the recording stops.
+    case recording(startedAt: Date)
+    /// Capture is over and the configuration window is up; nothing is being
+    /// recorded any more, and nothing has been uploaded yet.
     case configuring(startedAt: Date)
-    case recording(startedAt: Date, configuration: RecordingConfiguration)
     case uploading(RecordingConfiguration)
-    case failed(RecordingConfiguration, message: String)
+    /// The configuration is absent when the capture itself failed, since the
+    /// user never got to fill it in.
+    case failed(RecordingConfiguration?, message: String)
 }
 
 public enum RecordingEvent {
@@ -35,6 +40,8 @@ public enum RecordingEvent {
     case configurationCancelled
     case uploadSucceeded
     case uploadFailed(String)
+    /// The capture could not be finalised, so there is nothing to configure.
+    case captureFailed(String)
     case retryRequested
     case failureDismissed
 }
@@ -65,24 +72,28 @@ public final class RecordingFlow {
         switch (state, event) {
         case (.idle, .iconClicked):
             let startedAt = now()
+            state = .recording(startedAt: startedAt)
+            return [.startCapture, .setIcon(.recording), .setESP32Recording(true)]
+
+        case let (.recording(startedAt), .iconClicked):
             state = .configuring(startedAt: startedAt)
-            return [.startCapture, .setIcon(.recording), .setESP32Recording(true),
+            return [.stopCapture, .setESP32Recording(false), .setIcon(.uploading),
                     .showConfigurationWindow(startedAt: startedAt)]
 
         case (.configuring, .iconClicked):
             return [.focusConfigurationWindow]
 
-        case let (.configuring(startedAt), .configurationConfirmed(configuration)):
-            state = .recording(startedAt: startedAt, configuration: configuration)
-            return []
+        case let (.configuring, .configurationConfirmed(configuration)):
+            state = .uploading(configuration)
+            return [.upload(configuration)]
 
         case (.configuring, .configurationCancelled):
             state = .idle
-            return [.stopCapture, .discardFile, .setESP32Recording(false), .setIcon(.idle)]
+            return [.discardFile, .setIcon(.idle)]
 
-        case let (.recording(_, configuration), .iconClicked):
-            state = .uploading(configuration)
-            return [.stopCapture, .setESP32Recording(false), .setIcon(.uploading), .upload(configuration)]
+        case let (.configuring, .captureFailed(message)):
+            state = .failed(nil, message: message)
+            return [.setIcon(.idle)]
 
         case (.uploading, .uploadSucceeded):
             state = .idle
@@ -92,7 +103,7 @@ public final class RecordingFlow {
             state = .failed(configuration, message: message)
             return [.setIcon(.idle)]
 
-        case let (.failed(configuration, _), .retryRequested):
+        case let (.failed(configuration?, _), .retryRequested):
             state = .uploading(configuration)
             return [.setIcon(.uploading), .upload(configuration)]
 

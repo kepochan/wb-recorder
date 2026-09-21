@@ -9,7 +9,10 @@ struct PreferencesView: View {
             Text("Préférences").font(.headline)
 
             Form {
-                SecureField("Clé API", text: $model.apiKey)
+                HStack {
+                    SecureField("Clé API", text: $model.apiKey)
+                    Button("Tester") { Task { await model.test() } }
+                }
                 Text("Whiteboard → Settings → API keys, scopes recordings:read et recordings:write.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -33,7 +36,9 @@ struct PreferencesView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                TextField("IP de l'ESP32 (vide = désactivé)", text: $model.esp32Host)
+                DisclosureGroup("Avancé") {
+                    TextField("Serveur du voyant lumineux (vide = désactivé)", text: $model.esp32Host)
+                }
 
                 HStack {
                     Text("Dossier de sauvegarde")
@@ -51,7 +56,6 @@ struct PreferencesView: View {
             }
 
             HStack {
-                Button("Tester") { Task { await model.test() } }
                 Spacer()
                 Button("Enregistrer") {
                     model.save()

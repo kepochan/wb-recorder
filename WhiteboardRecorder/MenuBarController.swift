@@ -102,7 +102,7 @@ final class MenuBarController: NSObject {
 
     private func showMenu() {
         guard let button = statusItem.button else { return }
-        if case let .recording(startedAt, _) = flow.state {
+        if case let .recording(startedAt) = flow.state {
             let elapsed = Int(Date().timeIntervalSince(startedAt))
             durationItem.title = String(format: "Enregistrement — %02d:%02d", elapsed / 60, elapsed % 60)
             durationItem.isHidden = false
@@ -154,7 +154,14 @@ final class MenuBarController: NSObject {
                     // the failure itself is remembered so startUpload refuses to
                     // ship it and reaches the failure alert instead.
                     currentFileURL = partialFileURL(for: error)
-                    captureFailureMessage = "L'enregistrement n'a pas pu être finalisé : \(frenchMessage(for: error))"
+                    let message = "L'enregistrement n'a pas pu être finalisé : \(frenchMessage(for: error))"
+                    captureFailureMessage = message
+                    // There is nothing worth configuring, so the remaining
+                    // effects — including opening the configuration window —
+                    // must not run. The alert lets the partial file be saved.
+                    apply(flow.handle(.captureFailed(message)))
+                    presentFailure(message, canRetry: false)
+                    return
                 }
 
             case .discardFile, .deleteFile:

@@ -73,7 +73,7 @@ extension MenuBarController {
         // moves it to `.idle` before returning `.moveFileToSaveFolder` — by the
         // time that effect runs, the title can no longer be read from the
         // state. Remember it now so the safety-net move still gets it right.
-        if case let .failed(configuration, _) = flow.state, !configuration.title.isEmpty {
+        if case let .failed(configuration?, _) = flow.state, !configuration.title.isEmpty {
             lastFailedTitle = configuration.title
         }
 
@@ -187,9 +187,9 @@ extension MenuBarController {
         // rescues a file, and it deserves the meeting's name too.
         let configured: String?
         switch flow.state {
-        case let .failed(configuration, _), let .recording(_, configuration), let .uploading(configuration):
+        case let .failed(configuration?, _), let .uploading(configuration):
             configured = configuration.title.isEmpty ? nil : configuration.title
-        case .idle, .configuring:
+        case .failed(nil, _), .idle, .recording, .configuring:
             configured = nil
         }
 
