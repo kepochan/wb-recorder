@@ -15,6 +15,15 @@ struct ConfigurationView: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
+            if !model.deviceWatchArmed {
+                // Without that watcher a mid-meeting device or sample-rate
+                // change goes unnoticed, and a truncated recording would be
+                // uploaded as sound before the local copy is deleted.
+                Label("Surveillance du matériel audio impossible : si le micro change pendant la réunion, l'app ne le verra pas. Garde le même micro jusqu'à la fin.",
+                      systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
             if let error = model.loadingError {
                 Text(error).font(.caption).foregroundStyle(.red)
             }

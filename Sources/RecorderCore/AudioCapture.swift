@@ -19,6 +19,12 @@ public protocol AudioCapture: AnyObject {
     /// False when the system-audio tap could not be created: the microphone is
     /// still recorded, and the UI warns that remote participants are missing.
     var isSystemAudioAvailable: Bool { get }
+    /// False when the device-change watcher could not be armed. That watcher is
+    /// the only thing that notices a device dying or its sample rate moving
+    /// mid-recording, so without it a truncated or pitch-shifted file would be
+    /// uploaded as if it were sound — and the local copy then deleted. Valid
+    /// once `start()` has returned.
+    var isDeviceWatchArmed: Bool { get }
     /// Returns the instant capture actually started — this is `recordedAt`.
     func start() throws -> Date
     /// Returns the finished .m4a file.

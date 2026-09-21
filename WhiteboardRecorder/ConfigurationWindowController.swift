@@ -8,10 +8,12 @@ final class ConfigurationWindowController: NSWindowController {
          preferences: Preferences,
          client: WhiteboardClient,
          systemAudioAvailable: Bool,
+         deviceWatchArmed: Bool,
          onConfirm: @escaping (RecordingConfiguration) -> Void,
          onCancel: @escaping () -> Void) {
         let model = ConfigurationModel(startedAt: startedAt, preferences: preferences,
-                                       client: client, systemAudioAvailable: systemAudioAvailable)
+                                       client: client, systemAudioAvailable: systemAudioAvailable,
+                                       deviceWatchArmed: deviceWatchArmed)
         self.model = model
 
         // No close button: OK and Annuler are the only ways out.

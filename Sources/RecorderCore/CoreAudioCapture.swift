@@ -42,6 +42,7 @@ public struct CaptureDiagnostics: Equatable, CustomStringConvertible {
 /// device, so both sources share one clock and need no drift correction.
 public final class CoreAudioCapture: AudioCapture {
     public private(set) var isSystemAudioAvailable = false
+    public private(set) var isDeviceWatchArmed = false
     /// Populated by `stop()`, once the IO proc can no longer be running.
     public private(set) var diagnostics: CaptureDiagnostics?
 
@@ -68,6 +69,7 @@ public final class CoreAudioCapture: AudioCapture {
         }
         guard let inputUID = Self.defaultInputDeviceUID() else { throw CaptureError.noInputDevice }
 
+        isDeviceWatchArmed = false
         let tapUID = createTap()
         isSystemAudioAvailable = tapUID != nil
 
@@ -130,7 +132,7 @@ public final class CoreAudioCapture: AudioCapture {
             // Watch for the device dying or changing rate under us. Registered
             // only once the device is running, so the first reading is healthy.
             let watcher = DeviceWatcher(device: aggregateID, baselineSampleRate: rate)
-            watcher.start()
+            isDeviceWatchArmed = watcher.start()
             self.watcher = watcher
 
             // Frames only start flowing once AudioDeviceStart has returned, so
@@ -542,13 +544,29 @@ private final class DeviceWatcher {
 
     var didChange: Bool { shared.withLock { $0.changed } }
 
-    func start() {
+    /// Selectors actually accepted by CoreAudio, so `stop()` unregisters exactly
+    /// what was registered.
+    private var registered: [AudioObjectPropertySelector] = []
+
+    /// True only when every selector was accepted. A partial registration still
+    /// watches what it can, but it is not the full coverage the recording is
+    /// trusted on, so it counts as unarmed and the user is told.
+    private(set) var isArmed = false
+
+    @discardableResult
+    func start() -> Bool {
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in self?.evaluate() }
         listener = block
         for selector in DeviceWatcher.selectors {
             var address = DeviceWatcher.address(for: selector)
-            AudioObjectAddPropertyListenerBlock(device, &address, queue, block)
+            // Ignoring this status used to make the watcher silently optional:
+            // nothing would ever fire, `didChange` would stay false, and a
+            // truncated recording would be shipped as if it were sound.
+            let status = AudioObjectAddPropertyListenerBlock(device, &address, queue, block)
+            if status == noErr { registered.append(selector) }
         }
+        isArmed = registered.count == DeviceWatcher.selectors.count
+        return isArmed
     }
 
     func stop() {
@@ -556,10 +574,11 @@ private final class DeviceWatcher {
         // Set first: a notification already in flight on the queue must not be
         // mistaken for the device failing when it is only us shutting down.
         shared.withLock { $0.stopping = true }
-        for selector in DeviceWatcher.selectors {
+        for selector in registered {
             var address = DeviceWatcher.address(for: selector)
             AudioObjectRemovePropertyListenerBlock(device, &address, queue, listener)
         }
+        registered = []
         self.listener = nil
     }
 

@@ -190,6 +190,7 @@ final class MenuBarController: NSObject {
             preferences: preferences,
             client: client,
             systemAudioAvailable: capture.isSystemAudioAvailable,
+            deviceWatchArmed: capture.isDeviceWatchArmed,
             onConfirm: { [weak self] configuration in
                 guard let self else { return }
                 self.apply(self.flow.handle(.configurationConfirmed(configuration)))

@@ -15,17 +15,20 @@ final class ConfigurationModel: ObservableObject {
     @Published var loadingError: String?
 
     let systemAudioAvailable: Bool
+    let deviceWatchArmed: Bool
     private let preferences: Preferences
     private let client: WhiteboardClient
     /// Bumped on every `loadTags()` call so a stale response — from a workspace
     /// switch that has since been superseded — can never overwrite a newer one.
     private var tagLoadGeneration = 0
 
-    init(startedAt: Date, preferences: Preferences, client: WhiteboardClient, systemAudioAvailable: Bool) {
+    init(startedAt: Date, preferences: Preferences, client: WhiteboardClient,
+         systemAudioAvailable: Bool, deviceWatchArmed: Bool) {
         self.recordedAt = startedAt
         self.preferences = preferences
         self.client = client
         self.systemAudioAvailable = systemAudioAvailable
+        self.deviceWatchArmed = deviceWatchArmed
         self.language = preferences.lastLanguage
         self.sharingMode = preferences.lastSharingMode
         self.workspaceID = preferences.effectiveWorkspaceID ?? ""
