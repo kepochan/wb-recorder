@@ -44,10 +44,10 @@ final class MenuBarController: NSObject {
 
     private static let preferencesTitle = "Preferences…"
 
-    /// The elapsed-time line the spec asks for *in addition to* Préférences. It
+    /// The elapsed-time line the spec asks for *in addition to* the preferences. It
     /// carries no action, which is what keeps `autoenablesItems` from enabling
     /// it: it reads as a status line, not as a button. Overwriting the title of
-    /// the Préférences item instead used to hide Préférences behind the
+    /// the preferences item instead used to hide the preferences behind the
     /// duration and leave its action live.
     private let durationItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let durationSeparator = NSMenuItem.separator()
@@ -220,7 +220,7 @@ final class MenuBarController: NSObject {
             // upload; take the flow straight to its normal failure path so the
             // Task 14 alert appears instead of silently doing nothing. Retrying
             // a capture that never produced a valid file cannot succeed, so
-            // Réessayer is not offered here — which also means presentFailure
+            // Retry is not offered here — which also means presentFailure
             // can never be re-entered synchronously from its own `.retry` case
             // for this kind of failure.
             apply(flow.handle(.uploadFailed(captureFailureMessage)))
@@ -261,7 +261,7 @@ final class MenuBarController: NSObject {
                 self.configurationWindow?.close()
                 self.apply(self.flow.handle(.uploadFailed(error.message)))
                 // A dead key cannot be retried into working, so the alert offers
-                // the Préférences instead of "Réessayer".
+                // the preferences instead of "Retry".
                 self.presentFailure(error.message, isAuthFailure: error.isAuthenticationFailure)
             } catch {
                 self.configurationWindow?.close()
@@ -347,7 +347,7 @@ final class MenuBarController: NSObject {
     }
 
     /// `onClose` fires once, when the window goes away. The 401 path uses it to
-    /// bring the failure alert back with a "Réessayer" that can now work.
+    /// bring the failure alert back with a "Retry" that can now work.
     func presentPreferences(onClose: (() -> Void)? = nil) {
         let controller = preferencesWindow ?? PreferencesWindowController(preferences: preferences, keychain: keychain)
         preferencesWindow = controller

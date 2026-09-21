@@ -66,8 +66,8 @@ private func flowAwaitingConfiguration() -> RecordingFlow {
 @Test func aCaptureThatCouldNotBeFinalisedNeverAsksForAConfiguration() {
     let flow = flowAwaitingConfiguration()
 
-    #expect(flow.handle(.captureFailed("Le son n'a pas pu être enregistré.")) == [.setIcon(.idle)])
-    #expect(flow.state == .failed(nil, message: "Le son n'a pas pu être enregistré."))
+    #expect(flow.handle(.captureFailed("The sound could not be recorded.")) == [.setIcon(.idle)])
+    #expect(flow.state == .failed(nil, message: "The sound could not be recorded."))
     // Nothing to retry: there is no configuration and no usable recording.
     #expect(flow.handle(.retryRequested) == [])
 }
@@ -91,8 +91,8 @@ private func flowAwaitingConfiguration() -> RecordingFlow {
     let configuration = makeConfiguration()
     _ = flow.handle(.configurationConfirmed(configuration))
 
-    #expect(flow.handle(.uploadFailed("Réseau injoignable")) == [.setIcon(.idle)])
-    #expect(flow.state == .failed(configuration, message: "Réseau injoignable"))
+    #expect(flow.handle(.uploadFailed("Network unreachable")) == [.setIcon(.idle)])
+    #expect(flow.state == .failed(configuration, message: "Network unreachable"))
 
     #expect(flow.handle(.retryRequested) == [.setIcon(.uploading), .upload(configuration)])
     #expect(flow.state == .uploading(configuration))

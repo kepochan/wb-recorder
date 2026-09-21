@@ -1,5 +1,5 @@
 #!/usr/bin/env swift
-// Dessine l'icône de l'app : un disque rouge sur fond sombre arrondi.
+// Draws the app icon: a red disc on a dark rounded background.
 import AppKit
 
 let size = 1024.0
@@ -20,4 +20,4 @@ image.unlockFocus()
 let representation = NSBitmapImageRep(data: image.tiffRepresentation!)!
 let png = representation.representation(using: .png, properties: [:])!
 try! png.write(to: URL(fileURLWithPath: "icon-1024.png"))
-print("icon-1024.png écrit")
+print("icon-1024.png written")

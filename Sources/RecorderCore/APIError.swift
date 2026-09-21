@@ -29,7 +29,7 @@ public enum APIError: Error, Equatable {
 
     /// True when the request was refused because of the API key itself.
     /// Retrying with the same dead key can only fail again, so the failure
-    /// alert offers the Préférences instead of "Réessayer".
+    /// alert offers the preferences instead of "Retry".
     public var isAuthenticationFailure: Bool {
         switch self {
         case .noAPIKey, .unauthorized: return true

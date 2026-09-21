@@ -47,8 +47,8 @@ extension MenuBarController {
             // never seen and cannot match to anything in Finder.
             showAlert(title: "Recording kept safe",
                       message: """
-                      L'enregistrement en cours a été arrêté proprement et déposé dans \
-                      \(saveFolderDisplayName), sous le nom :
+                      The recording in progress was stopped cleanly and moved to \
+                      \(saveFolderDisplayName), under the name:
 
                       \(destination.lastPathComponent)
                       """)
@@ -117,14 +117,14 @@ extension MenuBarController {
                 ? "A recording from an earlier session was found and moved to"
                 : "\(moved.count) recordings from earlier sessions were found and moved to"
             lines.append("""
-            \(headline) \(saveFolderDisplayName) :
+            \(headline) \(saveFolderDisplayName):
 
             \(moved.map(\.lastPathComponent).joined(separator: "\n"))
             """)
         }
         if failures > 0 {
             lines.append("""
-            \(failures) fichier(s) n'ont pas pu être déplacés et se trouvent toujours ici :
+            \(failures) file(s) could not be moved and are still here:
 
             \(RecordingStorage.directory.path)
             """)

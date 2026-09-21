@@ -1,5 +1,5 @@
 #!/bin/bash
-# Compile en debug et relance l'app.
+# Builds in debug and relaunches the app.
 set -e
 cd "$(dirname "$0")"
 
@@ -12,4 +12,4 @@ xcodebuild -project WhiteboardRecorder.xcodeproj \
            build
 
 open build/Build/Products/Debug/WhiteboardRecorder.app
-echo "Lancé. Cherche le cercle dans la barre de menu."
+echo "Launched. Look for the circle in the menu bar."

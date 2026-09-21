@@ -13,14 +13,14 @@ enum FailureAlert {
     /// going to have anything valid to send cannot succeed, so "Retry" is
     /// not offered and the honest choices are "Enregistrer…" or "Close".
     ///
-    /// `isAuthFailure` replaces "Retry" with the Préférences: the same dead
+    /// `isAuthFailure` replaces "Retry" with the preferences: the same dead
     /// key can only fail again, so sending the user there is the only move that
     /// changes anything.
     ///
     /// `canSave` is false when nothing was ever written to disk. Both the
     /// "Enregistrer…" button and the sentence promising the file will land in
     /// the save folder are then dropped — otherwise the alert sends the user
-    /// hunting through Téléchargements for a file that never existed.
+    /// hunting through the Downloads folder for a file that never existed.
     static func present(message: String,
                         saveFolderName: String,
                         canRetry: Bool,
@@ -33,7 +33,7 @@ enum FailureAlert {
             ? """
               \(message)
 
-              L'enregistrement est conservé. Sans action de ta part, il sera déposé dans \
+              The recording is kept. If you do nothing, it will be moved to \
               \(saveFolderName).
               """
             : message
@@ -61,9 +61,10 @@ enum FailureAlert {
 }
 
 extension MenuBarController {
-    /// Finder shows folders under their localized names — « Téléchargements »,
-    /// not "Downloads". Naming the folder by `lastPathComponent` sent French
-    /// users looking for a folder they never see spelled that way.
+    /// Finder shows folders under their localized names, so a French user sees
+    /// "Téléchargements" where the path says "Downloads". Naming the folder by
+    /// `lastPathComponent` sent them looking for a folder they never see
+    /// spelled that way.
     var saveFolderDisplayName: String {
         FileManager.default.displayName(atPath: preferences.saveFolder.path)
     }
@@ -174,9 +175,9 @@ extension MenuBarController {
         alert.alertStyle = .critical
         alert.messageText = "Could not save"
         alert.informativeText = """
-        L'enregistrement n'a pas pu être déplacé (\(error.localizedDescription)).
+        The recording could not be moved (\(error.localizedDescription)).
 
-        Le fichier se trouve toujours ici : \(source.path)
+        The file is still here: \(source.path)
         """
         alert.addButton(withTitle: "OK")
         alert.runModal()
