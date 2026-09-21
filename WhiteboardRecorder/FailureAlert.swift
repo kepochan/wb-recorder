@@ -10,10 +10,10 @@ enum FailureAlert {
 
     /// `canRetry` is false when the failure came from the capture itself (or
     /// there is simply no file to send): retrying an upload that was never
-    /// going to have anything valid to send cannot succeed, so "Réessayer" is
-    /// not offered and the honest choices are "Enregistrer…" or "Fermer".
+    /// going to have anything valid to send cannot succeed, so "Retry" is
+    /// not offered and the honest choices are "Enregistrer…" or "Close".
     ///
-    /// `isAuthFailure` replaces "Réessayer" with the Préférences: the same dead
+    /// `isAuthFailure` replaces "Retry" with the Préférences: the same dead
     /// key can only fail again, so sending the user there is the only move that
     /// changes anything.
     ///
@@ -28,7 +28,7 @@ enum FailureAlert {
                         isAuthFailure: Bool) -> Choice {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Envoi impossible"
+        alert.messageText = "Upload failed"
         alert.informativeText = canSave
             ? """
               \(message)
@@ -42,17 +42,17 @@ enum FailureAlert {
         // whichever combination of buttons this failure deserves.
         var choices: [Choice] = []
         if isAuthFailure {
-            alert.addButton(withTitle: "Ouvrir les Préférences…")
+            alert.addButton(withTitle: "Open Preferences…")
             choices.append(.openPreferences)
         } else if canRetry {
-            alert.addButton(withTitle: "Réessayer")
+            alert.addButton(withTitle: "Retry")
             choices.append(.retry)
         }
         if canSave {
-            alert.addButton(withTitle: "Enregistrer…")
+            alert.addButton(withTitle: "Save…")
             choices.append(.save)
         }
-        alert.addButton(withTitle: "Fermer")
+        alert.addButton(withTitle: "Close")
         choices.append(.dismiss)
 
         let index = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
@@ -101,7 +101,7 @@ extension MenuBarController {
         case .openPreferences:
             // The flow deliberately stays `.failed`: the recording is still
             // held, and once the key has been fixed the same alert comes back —
-            // this time with a "Réessayer" that can actually succeed. If the app
+            // this time with a "Retry" that can actually succeed. If the app
             // is quit instead, `prepareForTermination` still rescues the file.
             presentPreferences { [weak self] in
                 DispatchQueue.main.async { [weak self] in
@@ -126,7 +126,7 @@ extension MenuBarController {
     func saveCurrentFileWithPanel() {
         guard let source = currentFileURL else { return }
         let panel = NSSavePanel()
-        panel.title = "Enregistrer l'audio de la réunion"
+        panel.title = "Save the meeting audio"
         panel.directoryURL = preferences.saveFolder
         panel.nameFieldStringValue = "\(suggestedFileName()).m4a"
         panel.allowedContentTypes = [.mpeg4Audio]
@@ -141,7 +141,7 @@ extension MenuBarController {
         }
     }
 
-    /// Safety net for "Fermer" (and for "Enregistrer…" if the panel was
+    /// Safety net for "Close" (and for "Enregistrer…" if the panel was
     /// cancelled): drops the recording into the default save folder so it is
     /// never silently lost. If the move fails, `currentFileURL` is kept so a
     /// later attempt (or the user, told where to look) can still recover it —
@@ -172,7 +172,7 @@ extension MenuBarController {
     private func showSaveFailureAlert(source: URL, error: Error) {
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = "Sauvegarde impossible"
+        alert.messageText = "Could not save"
         alert.informativeText = """
         L'enregistrement n'a pas pu être déplacé (\(error.localizedDescription)).
 
@@ -187,13 +187,13 @@ extension MenuBarController {
     /// has actually succeeded.
     func saveCopyOfCurrentFile(named title: String) {
         guard let source = currentFileURL else {
-            showAlert(title: "Rien à enregistrer",
-                      message: "L'enregistrement n'est plus disponible.")
+            showAlert(title: "Nothing to save",
+                      message: "The recording is no longer available.")
             return
         }
 
         let panel = NSSavePanel()
-        panel.title = "Enregistrer une copie de l'audio"
+        panel.title = "Save a copy of the audio"
         panel.directoryURL = preferences.saveFolder
         panel.nameFieldStringValue = "\(fileNameSlug(for: title)).m4a"
         panel.allowedContentTypes = [.mpeg4Audio]
@@ -203,8 +203,8 @@ extension MenuBarController {
             try? FileManager.default.removeItem(at: destination)
             try FileManager.default.copyItem(at: source, to: destination)
         } catch {
-            showAlert(title: "Copie impossible",
-                      message: "L'enregistrement n'a pas pu être copié : \(error.localizedDescription)")
+            showAlert(title: "Could not copy",
+                      message: "The recording could not be copied: \(error.localizedDescription)")
         }
     }
 
@@ -219,7 +219,7 @@ extension MenuBarController {
             configured = nil
         }
 
-        return fileNameSlug(for: configured ?? lastFailedTitle ?? "reunion")
+        return fileNameSlug(for: configured ?? lastFailedTitle ?? "meeting")
     }
 
     /// A file name built from the meeting's title and the instant it started.
@@ -227,11 +227,11 @@ extension MenuBarController {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd-HHmm"
         let cleaned = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        let slug = (cleaned.isEmpty ? "reunion" : cleaned)
+        let slug = (cleaned.isEmpty ? "meeting" : cleaned)
             .lowercased()
             .replacingOccurrences(of: " ", with: "-")
             .filter { $0.isLetter || $0.isNumber || $0 == "-" }
-        return "\(slug.isEmpty ? "reunion" : slug)-\(formatter.string(from: startedAt ?? Date()))"
+        return "\(slug.isEmpty ? "meeting" : slug)-\(formatter.string(from: startedAt ?? Date()))"
     }
 
     func uniqueURL(in folder: URL, name: String) -> URL {

@@ -45,7 +45,7 @@ extension MenuBarController {
             // Named by folder and file rather than by full path: inside the
             // sandbox `~/Downloads` resolves to a container path the user has
             // never seen and cannot match to anything in Finder.
-            showAlert(title: "Enregistrement mis à l'abri",
+            showAlert(title: "Recording kept safe",
                       message: """
                       L'enregistrement en cours a été arrêté proprement et déposé dans \
                       \(saveFolderDisplayName), sous le nom :
@@ -53,8 +53,8 @@ extension MenuBarController {
                       \(destination.lastPathComponent)
                       """)
         } else if currentFileURL == nil {
-            showAlert(title: "Enregistrement perdu",
-                      message: "L'enregistrement en cours n'a pas pu être récupéré : aucun fichier audio n'a été trouvé.")
+            showAlert(title: "Recording lost",
+                      message: "The recording in progress could not be rescued: no audio file was found.")
         }
         // Otherwise the move failed and `moveCurrentFileToSaveFolder` has
         // already told the user where the file still is.
@@ -102,7 +102,7 @@ extension MenuBarController {
             let date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? Date()
             let destination = uniqueURL(in: preferences.saveFolder,
-                                        name: "reunion-recuperee-\(formatter.string(from: date))")
+                                        name: "recovered-meeting-\(formatter.string(from: date))")
             do {
                 try FileManager.default.moveItem(at: file, to: destination)
                 moved.append(destination)
@@ -114,8 +114,8 @@ extension MenuBarController {
         var lines: [String] = []
         if !moved.isEmpty {
             let headline = moved.count == 1
-                ? "Un enregistrement d'une session précédente a été retrouvé et déposé dans"
-                : "\(moved.count) enregistrements de sessions précédentes ont été retrouvés et déposés dans"
+                ? "A recording from an earlier session was found and moved to"
+                : "\(moved.count) recordings from earlier sessions were found and moved to"
             lines.append("""
             \(headline) \(saveFolderDisplayName) :
 
@@ -131,7 +131,7 @@ extension MenuBarController {
         }
 
         guard !lines.isEmpty else { return }
-        showAlert(title: moved.isEmpty ? "Enregistrements à récupérer" : "Enregistrements récupérés",
+        showAlert(title: moved.isEmpty ? "Recordings to recover" : "Recordings recovered",
                   message: lines.joined(separator: "\n\n"))
     }
 }

@@ -15,7 +15,7 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
                               styleMask: [.titled, .closable],
                               backing: .buffered,
                               defer: false)
-        window.title = "Whiteboard Recorder — Préférences"
+        window.title = "Whiteboard Recorder — Preferences"
         window.isReleasedWhenClosed = false
         super.init(window: window)
         window.delegate = self

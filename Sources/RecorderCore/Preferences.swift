@@ -9,9 +9,9 @@ public final class Preferences {
     /// this only ever reaches the screen.
     public static func languageName(_ code: String) -> String {
         switch code {
-        case "auto": return "Détection automatique"
-        case "fr": return "Français"
-        case "en": return "Anglais"
+        case "auto": return "Detect automatically"
+        case "fr": return "French"
+        case "en": return "English"
         default: return code
         }
     }
@@ -22,12 +22,12 @@ public final class Preferences {
     /// raw token is still what gets sent.
     public static func sharingModeName(_ mode: String) -> String {
         switch mode {
-        case "private": return "Privée — moi seul"
-        case "protected": return "Espace de travail — lecture"
-        case "limited": return "Espace de travail — sur invitation"
-        case "editable": return "Espace de travail — lecture et modification"
-        case "public": return "Publique — lecture avec le lien"
-        case "open-bar": return "Publique — lecture et modification avec le lien"
+        case "private": return "Private — only me"
+        case "protected": return "Workspace — read"
+        case "limited": return "Workspace — by invitation"
+        case "editable": return "Workspace — read and edit"
+        case "public": return "Public — read with the link"
+        case "open-bar": return "Public — read and edit with the link"
         default: return mode
         }
     }

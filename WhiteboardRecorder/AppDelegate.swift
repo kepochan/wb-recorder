@@ -19,14 +19,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// AppKit never routes ⌘X / ⌘C / ⌘V to the focused text field — pasting an
     /// API key would only work through the right-click menu.
     private static func installEditMenu(on application: NSApplication) {
-        let edit = NSMenu(title: "Édition")
-        edit.addItem(withTitle: "Annuler", action: Selector(("undo:")), keyEquivalent: "z")
-        edit.addItem(withTitle: "Rétablir", action: Selector(("redo:")), keyEquivalent: "Z")
+        let edit = NSMenu(title: "Edit")
+        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
         edit.addItem(.separator())
-        edit.addItem(withTitle: "Couper", action: Selector(("cut:")), keyEquivalent: "x")
-        edit.addItem(withTitle: "Copier", action: Selector(("copy:")), keyEquivalent: "c")
-        edit.addItem(withTitle: "Coller", action: Selector(("paste:")), keyEquivalent: "v")
-        edit.addItem(withTitle: "Tout sélectionner", action: Selector(("selectAll:")), keyEquivalent: "a")
+        edit.addItem(withTitle: "Cut", action: Selector(("cut:")), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: Selector(("copy:")), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: Selector(("paste:")), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: Selector(("selectAll:")), keyEquivalent: "a")
 
         let editItem = NSMenuItem()
         editItem.submenu = edit

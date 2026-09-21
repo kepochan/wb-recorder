@@ -63,7 +63,7 @@ final class PreferencesModel: ObservableObject {
                 // The key is the app's only credential: a swallowed write
                 // failure would leave the user certain they're configured
                 // while every recording fails to upload. Say so instead.
-                errors.append("La clé API n'a pas pu être enregistrée dans le Trousseau.")
+                errors.append("The API key could not be saved to the Keychain.")
             }
         }
 
@@ -81,7 +81,7 @@ final class PreferencesModel: ObservableObject {
             // anything without an http(s) scheme and a host instead of
             // silently saving an endpoint the app can never reach, and
             // leave the previously stored value untouched.
-            errors.append("URL de l'API invalide : elle doit commencer par http:// ou https:// et indiquer un serveur.")
+            errors.append("Invalid API URL: it must start with http:// or https:// and name a server.")
         }
 
         preferences.esp32Host = esp32Host
@@ -104,7 +104,7 @@ final class PreferencesModel: ObservableObject {
         do {
             let client = WhiteboardClient(baseURL: preferences.apiBaseURL, apiKey: { [keychain] in keychain.read() })
             workspaces = try await client.listWorkspaces()
-            testResult = "Clé valide — \(workspaces.count) workspace(s)."
+            testResult = "Key accepted — \(workspaces.count) workspace(s)."
             testSucceeded = true
         } catch let error as APIError {
             testResult = error.message

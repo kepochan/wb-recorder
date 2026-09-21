@@ -14,12 +14,12 @@ import Testing
     #expect(APIError.from(status: 401, body: body) == .unauthorized("Invalid or expired API key"))
 }
 
-@Test func knownStatusesMapToFrenchMessages() {
+@Test func knownStatusesMapToReadableMessages() {
     #expect(APIError.from(status: 413, body: Data()) == .tooLarge)
-    #expect(APIError.tooLarge.message.contains("1 Gio"))
-    #expect(APIError.unauthorized("").message.contains("Clé API"))
+    #expect(APIError.tooLarge.message.contains("1 GiB"))
+    #expect(APIError.unauthorized("").message.contains("API key"))
     #expect(APIError.forbidden("").message.contains("workspace"))
-    #expect(APIError.conflict("").message.contains("existe déjà"))
+    #expect(APIError.conflict("").message.contains("already exists"))
 }
 
 @Test func unknownStatusCarriesItsCode() {
@@ -50,6 +50,6 @@ import Testing
     // The app never sends a slug, and the user has never seen one.
     let message = APIError.conflict("").message
     #expect(!message.lowercased().contains("slug"))
-    #expect(message.contains("titre"))
+    #expect(message.contains("title"))
     #expect(message.contains("date"))
 }

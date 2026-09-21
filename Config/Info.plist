@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>fr</string>
+	<string>en</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,8 +27,8 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Whiteboard Recorder enregistre ton micro pendant les réunions.</string>
+	<string>Whiteboard Recorder records your microphone during meetings.</string>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Whiteboard Recorder capte le son des autres applications pour enregistrer les participants distants.</string>
+	<string>Whiteboard Recorder captures audio from other apps so remote participants are recorded.</string>
 </dict>
 </plist>

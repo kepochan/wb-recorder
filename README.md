@@ -18,7 +18,7 @@ bar, not for a window.
 
 1. Download `WhiteboardRecorder.zip`, unzip it, drag the app into `/Applications`.
 2. On first launch, right-click the circle in the menu bar and open
-   **Préférences…** to paste an API key. Create the key in Whiteboard under
+   **Preferences…** to paste an API key. Create the key in Whiteboard under
    **Settings → API keys**, with the scopes `recordings:read` and
    `recordings:write` to upload, plus `notes:read` so the app can offer the
    workspace's existing tags.
@@ -45,11 +45,11 @@ Privacy & Security.
   it stopped.
 - **OK** uploads. The window stays up and tells you whether the upload landed,
   naming the workspace it went to; it closes when you say so.
-- **Enregistrer une copie…** keeps a copy of the `.m4a` before it is sent. The
+- **Save a copy…** keeps a copy of the `.m4a` before it is sent. The
   local file is deleted once the upload succeeds, so this is the moment to ask
   for one.
-- **Annuler** throws the recording away.
-- **Right-click**: elapsed time while recording, **Préférences…**, **Quitter**.
+- **Discard** throws the recording away.
+- **Right-click**: elapsed time while recording, **Preferences…**, **Quit**.
 
 The audio is not kept on the server: it is deleted once transcribed. The app
 keeps its local copy until the upload succeeds, then deletes it.
@@ -62,9 +62,9 @@ the `meeting` tag by itself.
 
 The local recording is **never deleted** on failure. An alert offers:
 
-- **Réessayer**, when another attempt could plausibly succeed;
-- **Enregistrer…**, to choose where to put the `.m4a`;
-- **Fermer**.
+- **Retry**, when another attempt could plausibly succeed;
+- **Save…**, to choose where to put the `.m4a`;
+- **Close**.
 
 If you dismiss the alert without choosing, or if the failure came from the
 recording itself rather than from the upload, the file is moved to your save

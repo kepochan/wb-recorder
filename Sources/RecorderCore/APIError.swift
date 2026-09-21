@@ -40,33 +40,33 @@ public enum APIError: Error, Equatable {
     public var message: String {
         switch self {
         case .noAPIKey:
-            return "Aucune clé API configurée. Ouvre les Préférences pour en coller une."
+            return "No API key configured. Open the preferences to paste one."
         case .invalidTitle:
-            return "Le titre doit faire entre 1 et 255 caractères."
+            return "The title must be between 1 and 255 characters."
         case .recordedAtInFuture:
-            return "La date de réunion ne peut pas être dans le futur."
+            return "The meeting date cannot be in the future."
         case let .badRequest(messages):
-            return messages.isEmpty ? "Requête refusée par le serveur." : messages.joined(separator: "\n")
+            return messages.isEmpty ? "The server rejected the request." : messages.joined(separator: "\n")
         case let .unauthorized(detail):
             return detail.isEmpty
-                ? "Clé API absente, invalide ou révoquée."
-                : "Clé API absente, invalide ou révoquée : \(detail)"
+                ? "API key missing, invalid or revoked."
+                : "API key missing, invalid or revoked: \(detail)"
         case let .forbidden(detail):
-            return detail.isEmpty ? "Tu n'es pas membre de ce workspace." : "Accès refusé : \(detail)"
+            return detail.isEmpty ? "You are not a member of this workspace." : "Access denied: \(detail)"
         case let .notFound(detail):
-            return detail.isEmpty ? "Ressource introuvable." : detail
+            return detail.isEmpty ? "Not found." : detail
         case let .conflict(detail):
             // The app never sends a slug and the user has never seen one, so
             // the collision is named by what they did choose: title and date.
             return detail.isEmpty
-                ? "Une note existe déjà pour ce titre et cette date de réunion."
-                : "Une note existe déjà pour ce titre et cette date de réunion : \(detail)"
+                ? "A note already exists for this title and meeting date."
+                : "A note already exists for this title and meeting date: \(detail)"
         case .tooLarge:
-            return "Fichier trop volumineux (limite : 1 Gio)."
+            return "File too large (limit: 1 GiB)."
         case let .server(status, detail):
-            return detail.isEmpty ? "Erreur serveur (\(status))." : "Erreur serveur (\(status)) : \(detail)"
+            return detail.isEmpty ? "Server error (\(status))." : "Server error (\(status)): \(detail)"
         case .invalidResponse:
-            return "Réponse inattendue du serveur."
+            return "Unexpected response from the server."
         }
     }
 }

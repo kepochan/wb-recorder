@@ -42,7 +42,7 @@ final class MenuBarController: NSObject {
 
     // MARK: - Menu
 
-    private static let preferencesTitle = "Préférences…"
+    private static let preferencesTitle = "Preferences…"
 
     /// The elapsed-time line the spec asks for *in addition to* Préférences. It
     /// carries no action, which is what keeps `autoenablesItems` from enabling
@@ -61,7 +61,7 @@ final class MenuBarController: NSObject {
         preferencesItem.target = self
         contextMenu.addItem(preferencesItem)
         contextMenu.addItem(.separator())
-        let quit = NSMenuItem(title: "Quitter", action: #selector(quit), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         contextMenu.addItem(quit)
     }
@@ -104,7 +104,7 @@ final class MenuBarController: NSObject {
         guard let button = statusItem.button else { return }
         if case let .recording(startedAt) = flow.state {
             let elapsed = Int(Date().timeIntervalSince(startedAt))
-            durationItem.title = String(format: "Enregistrement — %02d:%02d", elapsed / 60, elapsed % 60)
+            durationItem.title = String(format: "Recording — %02d:%02d", elapsed / 60, elapsed % 60)
             durationItem.isHidden = false
             durationSeparator.isHidden = false
         } else {
@@ -128,7 +128,7 @@ final class MenuBarController: NSObject {
                 do {
                     startedAt = try capture.start()
                 } catch {
-                    showAlert(title: "Enregistrement impossible", message: frenchMessage(for: error))
+                    showAlert(title: "Cannot record", message: message(for: error))
                     apply(flow.handle(.configurationCancelled))
                     // `.startCapture` is always the first of the four effects
                     // `(.idle, .iconClicked)` returns; the other three
@@ -154,7 +154,7 @@ final class MenuBarController: NSObject {
                     // the failure itself is remembered so startUpload refuses to
                     // ship it and reaches the failure alert instead.
                     currentFileURL = partialFileURL(for: error)
-                    let message = "L'enregistrement n'a pas pu être finalisé : \(frenchMessage(for: error))"
+                    let message = "The recording could not be finalised: \(message(for: error))"
                     captureFailureMessage = message
                     // There is nothing worth configuring, so the remaining
                     // effects — including opening the configuration window —
@@ -231,7 +231,7 @@ final class MenuBarController: NSObject {
         guard let fileURL = currentFileURL else {
             // No capture failure was recorded, yet there is no file either —
             // nothing retrying would change, so this is not offered either.
-            let message = "Le fichier audio est introuvable."
+            let message = "The audio file is missing."
             apply(flow.handle(.uploadFailed(message)))
             presentFailure(message, canRetry: false)
             return
@@ -292,10 +292,10 @@ final class MenuBarController: NSObject {
 
     private func showMicrophoneAlert() {
         let alert = NSAlert()
-        alert.messageText = "Accès au micro requis"
-        alert.informativeText = "Autorise Whiteboard Recorder dans Réglages Système → Confidentialité et sécurité → Microphone."
-        alert.addButton(withTitle: "Ouvrir les réglages")
-        alert.addButton(withTitle: "Annuler")
+        alert.messageText = "Microphone access required"
+        alert.informativeText = "Allow Whiteboard Recorder in System Settings → Privacy & Security → Microphone."
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "Cancel")
         if alert.runModal() == .alertFirstButtonReturn,
            let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
             NSWorkspace.shared.open(url)
@@ -324,21 +324,21 @@ final class MenuBarController: NSObject {
 
     /// `CaptureError` carries no user-facing text of its own; this maps it (and
     /// any other error) to a plain French explanation.
-    private func frenchMessage(for error: Error) -> String {
+    private func message(for error: Error) -> String {
         guard let captureError = error as? CaptureError else { return error.localizedDescription }
         switch captureError {
         case .noInputDevice:
-            return "Aucun micro n'a été trouvé."
+            return "No microphone was found."
         case .aggregateDeviceFailed:
-            return "Le périphérique audio n'a pas pu être configuré."
+            return "The audio device could not be set up."
         case .notRecording:
-            return "Aucune capture n'était en cours."
+            return "No capture was running."
         case let .writeFailed(reason, _):
-            return "L'écriture du fichier audio a échoué (\(reason))."
+            return "Writing the audio file failed (\(reason))."
         case .deviceChanged:
-            return "Le périphérique audio a changé pendant la capture."
+            return "The audio device changed during the capture."
         case .nothingCaptured:
-            return "Aucun son n'a été capté."
+            return "No sound was captured."
         }
     }
 

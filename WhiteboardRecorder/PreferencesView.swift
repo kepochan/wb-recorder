@@ -6,23 +6,23 @@ struct PreferencesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Préférences").font(.headline)
+            Text("Preferences").font(.headline)
 
             Form {
                 HStack {
-                    SecureField("Clé API", text: $model.apiKey)
-                    Button("Tester") { Task { await model.test() } }
+                    SecureField("API key", text: $model.apiKey)
+                    Button("Test") { Task { await model.test() } }
                 }
-                Text("Whiteboard → Settings → API keys. Scopes : recordings:read et recordings:write pour envoyer, plus notes:read pour proposer les tags du workspace.")
+                Text("Whiteboard → Settings → API keys. Scopes: recordings:read and recordings:write to upload, plus notes:read so the app can offer the workspace's tags.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                TextField("URL de l'API", text: $model.apiBaseURL)
+                TextField("API URL", text: $model.apiBaseURL)
 
                 // The workspace list only exists once a key has actually been
                 // accepted by the server, so the picker stays disabled until
                 // then rather than offering an empty choice.
-                Picker("Workspace par défaut", selection: $model.defaultWorkspaceID) {
+                Picker("Default workspace", selection: $model.defaultWorkspaceID) {
                     Text("—").tag("")
                     ForEach(model.workspaces) { workspace in
                         Text(workspace.name).tag(workspace.id)
@@ -31,20 +31,20 @@ struct PreferencesView: View {
                 .disabled(model.workspaces.isEmpty)
 
                 if model.workspaces.isEmpty {
-                    Text("Colle ta clé API et clique sur Tester pour charger tes workspaces.")
+                    Text("Paste your API key and click Test to load your workspaces.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                DisclosureGroup("Avancé") {
-                    TextField("Serveur du voyant lumineux (vide = désactivé)", text: $model.esp32Host)
+                DisclosureGroup("Advanced") {
+                    TextField("Status light server (empty = off)", text: $model.esp32Host)
                 }
 
                 HStack {
-                    Text("Dossier de sauvegarde")
+                    Text("Save folder")
                     Spacer()
                     Text(model.saveFolder.lastPathComponent).foregroundStyle(.secondary)
-                    Button("Choisir…") { model.chooseSaveFolder() }
+                    Button("Choose…") { model.chooseSaveFolder() }
                 }
             }
 
@@ -60,7 +60,7 @@ struct PreferencesView: View {
 
             HStack {
                 Spacer()
-                Button("Enregistrer") {
+                Button("Save") {
                     model.save()
                     // A rejected URL or a failed Keychain write must stay
                     // visible so the user can fix it — closing here would
