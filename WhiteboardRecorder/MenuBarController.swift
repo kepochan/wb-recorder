@@ -12,6 +12,7 @@ final class MenuBarController: NSObject {
     let flow = RecordingFlow()
 
     private var configurationWindow: ConfigurationWindowController?
+    private var preferencesWindow: PreferencesWindowController?
     var currentFileURL: URL?
     var startedAt: Date?
 
@@ -307,9 +308,10 @@ final class MenuBarController: NSObject {
         }
     }
 
-    /// Replaced by the real window in Task 15.
     @objc private func showPreferences() {
-        NSLog("preferences")
+        let controller = preferencesWindow ?? PreferencesWindowController(preferences: preferences, keychain: keychain)
+        preferencesWindow = controller
+        controller.show()
     }
 
     @objc private func quit() {

@@ -1,0 +1,54 @@
+import SwiftUI
+
+struct PreferencesView: View {
+    @ObservedObject var model: PreferencesModel
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Préférences").font(.headline)
+
+            Form {
+                SecureField("Clé API", text: $model.apiKey)
+                Text("Whiteboard → Settings → API keys, scopes recordings:read et recordings:write.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                TextField("URL de l'API", text: $model.apiBaseURL)
+
+                Picker("Workspace par défaut", selection: $model.defaultWorkspaceID) {
+                    Text("—").tag("")
+                    ForEach(model.workspaces) { workspace in
+                        Text(workspace.name).tag(workspace.id)
+                    }
+                }
+
+                TextField("IP de l'ESP32 (vide = désactivé)", text: $model.esp32Host)
+
+                HStack {
+                    Text("Dossier de sauvegarde")
+                    Spacer()
+                    Text(model.saveFolder.lastPathComponent).foregroundStyle(.secondary)
+                    Button("Choisir…") { model.chooseSaveFolder() }
+                }
+            }
+
+            if let result = model.testResult {
+                Text(result).font(.caption)
+            }
+
+            HStack {
+                Button("Tester") { Task { await model.test() } }
+                Spacer()
+                Button("Enregistrer") {
+                    model.save()
+                    onClose()
+                }
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 480)
+        .task { await model.test() }
+    }
+}
