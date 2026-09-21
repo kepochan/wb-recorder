@@ -44,7 +44,19 @@ final class MenuBarController: NSObject {
 
     private static let preferencesTitle = "Préférences…"
 
+    /// The elapsed-time line the spec asks for *in addition to* Préférences. It
+    /// carries no action, which is what keeps `autoenablesItems` from enabling
+    /// it: it reads as a status line, not as a button. Overwriting the title of
+    /// the Préférences item instead used to hide Préférences behind the
+    /// duration and leave its action live.
+    private let durationItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let durationSeparator = NSMenuItem.separator()
+
     private func buildMenu() {
+        durationItem.isHidden = true
+        durationSeparator.isHidden = true
+        contextMenu.addItem(durationItem)
+        contextMenu.addItem(durationSeparator)
         let preferencesItem = NSMenuItem(title: Self.preferencesTitle, action: #selector(showPreferences), keyEquivalent: ",")
         preferencesItem.target = self
         contextMenu.addItem(preferencesItem)
@@ -92,9 +104,12 @@ final class MenuBarController: NSObject {
         guard let button = statusItem.button else { return }
         if case let .recording(startedAt, _) = flow.state {
             let elapsed = Int(Date().timeIntervalSince(startedAt))
-            contextMenu.item(at: 0)?.title = String(format: "Enregistrement — %02d:%02d", elapsed / 60, elapsed % 60)
+            durationItem.title = String(format: "Enregistrement — %02d:%02d", elapsed / 60, elapsed % 60)
+            durationItem.isHidden = false
+            durationSeparator.isHidden = false
         } else {
-            contextMenu.item(at: 0)?.title = Self.preferencesTitle
+            durationItem.isHidden = true
+            durationSeparator.isHidden = true
         }
         contextMenu.popUp(positioning: nil,
                           at: NSPoint(x: button.bounds.midX, y: button.bounds.minY),
