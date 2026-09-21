@@ -36,4 +36,18 @@ public enum RecordingStorage {
     public static func newFileURL() -> URL {
         directory.appendingPathComponent("\(UUID().uuidString).m4a")
     }
+
+    /// Recordings still sitting in the working directory. A running capture
+    /// owns the one it is writing; anything found here at launch was stranded
+    /// by a crash, a kill or a move that failed, and nothing else ever lists
+    /// this folder — so without this sweep those files rot there unseen.
+    public static func strandedFiles(in directory: URL = RecordingStorage.directory) -> [URL] {
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles])) ?? []
+        return contents
+            .filter { $0.pathExtension.lowercased() == "m4a" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
 }

@@ -8,10 +8,10 @@ final class MenuBarController: NSObject {
 
     let preferences = Preferences()
     private let keychain = KeychainStore()
-    private let capture: AudioCapture = CoreAudioCapture()
+    let capture: AudioCapture = CoreAudioCapture()
     let flow = RecordingFlow()
 
-    private var configurationWindow: ConfigurationWindowController?
+    var configurationWindow: ConfigurationWindowController?
     private var preferencesWindow: PreferencesWindowController?
     var currentFileURL: URL?
     var startedAt: Date?
@@ -270,7 +270,7 @@ final class MenuBarController: NSObject {
         }
     }
 
-    private func showAlert(title: String, message: String) {
+    func showAlert(title: String, message: String) {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
@@ -280,7 +280,7 @@ final class MenuBarController: NSObject {
 
     /// The partial file a failed `stop()` may still have left on disk, or nil
     /// when the error carries none (or is not a `CaptureError` at all).
-    private func partialFileURL(for error: Error) -> URL? {
+    func partialFileURL(for error: Error) -> URL? {
         guard let captureError = error as? CaptureError else { return nil }
         switch captureError {
         case let .writeFailed(_, partialFile), let .deviceChanged(partialFile), let .nothingCaptured(partialFile):

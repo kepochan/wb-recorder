@@ -147,18 +147,25 @@ extension MenuBarController {
     /// later attempt (or the user, told where to look) can still recover it —
     /// clearing it unconditionally would orphan the file with nothing left
     /// pointing at it.
-    func moveCurrentFileToSaveFolder() {
-        guard let source = currentFileURL else { return }
+    ///
+    /// Returns where the recording landed, or nil when there was nothing to move
+    /// or the move failed — in the latter case `currentFileURL` is still set and
+    /// the user has already been shown where the file remains.
+    @discardableResult
+    func moveCurrentFileToSaveFolder() -> URL? {
+        guard let source = currentFileURL else { return nil }
         guard FileManager.default.fileExists(atPath: source.path) else {
             currentFileURL = nil
-            return
+            return nil
         }
         let destination = uniqueURL(in: preferences.saveFolder, name: suggestedFileName())
         do {
             try FileManager.default.moveItem(at: source, to: destination)
             currentFileURL = nil
+            return destination
         } catch {
             showSaveFailureAlert(source: source, error: error)
+            return nil
         }
     }
 
@@ -176,14 +183,17 @@ extension MenuBarController {
     }
 
     private func suggestedFileName() -> String {
-        let title: String
-        if case let .failed(configuration, _) = flow.state, !configuration.title.isEmpty {
-            title = configuration.title
-        } else if let lastFailedTitle {
-            title = lastFailedTitle
-        } else {
-            title = "reunion"
+        // `.recording` and `.uploading` matter because a quit mid-flight also
+        // rescues a file, and it deserves the meeting's name too.
+        let configured: String?
+        switch flow.state {
+        case let .failed(configuration, _), let .recording(_, configuration), let .uploading(configuration):
+            configured = configuration.title.isEmpty ? nil : configuration.title
+        case .idle, .configuring:
+            configured = nil
         }
+
+        let title = configured ?? lastFailedTitle ?? "reunion"
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd-HHmm"
         let slug = title
@@ -193,7 +203,7 @@ extension MenuBarController {
         return "\(slug)-\(formatter.string(from: startedAt ?? Date()))"
     }
 
-    private func uniqueURL(in folder: URL, name: String) -> URL {
+    func uniqueURL(in folder: URL, name: String) -> URL {
         var candidate = folder.appendingPathComponent("\(name).m4a")
         var index = 2
         while FileManager.default.fileExists(atPath: candidate.path) {
