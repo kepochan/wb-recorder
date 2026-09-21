@@ -69,7 +69,8 @@ struct ConfigurationView: View {
             }
         }
         .padding(20)
-        .frame(width: 460)
+        // minWidth, not width: see PreferencesView — a hard width clips.
+        .frame(minWidth: 460)
         .task { await model.load() }
     }
 

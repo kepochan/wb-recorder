@@ -66,7 +66,9 @@ struct PreferencesView: View {
             }
         }
         .padding(20)
-        .frame(width: 480)
+        // minWidth, not width: a hard width clamps the content to a size
+        // smaller than it needs and clips it on both sides.
+        .frame(minWidth: 480)
         .task { await model.test() }
     }
 }
