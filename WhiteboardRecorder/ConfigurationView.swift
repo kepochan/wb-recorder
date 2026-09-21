@@ -126,6 +126,22 @@ struct ConfigurationView: View {
         }
     }
 
+    /// The server's tag palette. Anything unknown falls back to the neutral
+    /// colour rather than pretending to a colour the server never sent.
+    private static func color(named name: String) -> Color {
+        switch name {
+        case "blue": return .blue
+        case "purple": return .purple
+        case "green": return .green
+        case "orange": return .orange
+        case "red": return .red
+        case "pink": return .pink
+        case "yellow": return .yellow
+        case "gray", "grey": return .gray
+        default: return .secondary
+        }
+    }
+
     private var tagsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Tags").font(.subheadline)
@@ -140,6 +156,7 @@ struct ConfigurationView: View {
                                 Text("\(tag.label) ✕")
                             }
                             .buttonStyle(.bordered)
+                            .tint(Self.color(named: tag.color))
                         }
                     }
                 }
@@ -153,8 +170,12 @@ struct ConfigurationView: View {
             if !model.tagSuggestions.isEmpty {
                 HStack(spacing: 6) {
                     ForEach(model.tagSuggestions, id: \.label) { tag in
-                        Button(tag.label) { model.select(tag) }
-                            .buttonStyle(.link)
+                        Button {
+                            model.select(tag)
+                        } label: {
+                            Text(tag.label).foregroundStyle(Self.color(named: tag.color))
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
