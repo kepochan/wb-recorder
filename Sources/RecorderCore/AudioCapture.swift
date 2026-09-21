@@ -4,6 +4,15 @@ public enum CaptureError: Error, Equatable {
     case noInputDevice
     case aggregateDeviceFailed(OSStatus)
     case notRecording
+    /// The encoder failed while the capture was running, so the file is
+    /// truncated. It is left on disk at `partialFile` for salvage, but it is
+    /// never handed back as a recording.
+    case writeFailed(reason: String, partialFile: String)
+    /// The input device died, or its sample rate changed, while recording: the
+    /// file is truncated or pitch-shifted and cannot be trusted.
+    case deviceChanged(partialFile: String)
+    /// Not a single frame reached the encoder.
+    case nothingCaptured(partialFile: String)
 }
 
 public protocol AudioCapture: AnyObject {
