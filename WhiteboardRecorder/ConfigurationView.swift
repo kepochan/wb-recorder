@@ -101,14 +101,18 @@ struct ConfigurationView: View {
                 // separately but write the same instant, and each keeps the
                 // other's value untouched.
                 HStack {
+                    // .field rather than the default stepper style: measured
+                    // and rendered offscreen, the stepper leaves the digits
+                    // flush against the right edge of the box, while the plain
+                    // field pads them on both sides.
                     DatePicker("Date de réunion", selection: $model.recordedAt,
                                in: ...Date(), displayedComponents: .date)
+                        .datePickerStyle(.field)
                         .fixedSize()
-                    // fixedSize: inside an HStack the time field is otherwise
-                    // compressed below its natural width and clips the hour.
                     DatePicker("", selection: $model.recordedAt,
                                in: ...Date(), displayedComponents: .hourAndMinute)
                         .labelsHidden()
+                        .datePickerStyle(.field)
                         .fixedSize()
                     Spacer()
                 }
