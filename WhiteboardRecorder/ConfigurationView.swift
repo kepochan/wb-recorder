@@ -24,7 +24,7 @@ struct ConfigurationView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Envoi en cours…").font(.headline)
             ProgressView().progressViewStyle(.linear)
-            Text("L'enregistrement part vers Whiteboard. Ne quitte pas l'app.")
+            Text("Envoi de « \(model.title) » vers \(model.selectedWorkspaceName). Ne quitte pas l'app.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -35,7 +35,7 @@ struct ConfigurationView: View {
             Label("Envoyé", systemImage: "checkmark.circle")
                 .font(.headline)
                 .foregroundStyle(.green)
-            Text("La transcription est en cours côté Whiteboard. La note apparaîtra dans le workspace choisi d'ici une minute ou deux.")
+            Text("« \(model.title) » est parti dans \(model.selectedWorkspaceName). La transcription est en cours ; la note y apparaîtra d'ici une minute ou deux.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack {
@@ -70,11 +70,20 @@ struct ConfigurationView: View {
             }
 
             Form {
+                // The list arrives from the network, and until it does the
+                // selection matches no row. A Picker in that state renders
+                // blank and drops the choices the user then makes, so it keeps
+                // a row matching the current value at all times and stays
+                // disabled while there is nothing real to choose from.
                 Picker("Workspace", selection: $model.workspaceID) {
+                    if model.workspaces.isEmpty {
+                        Text("Chargement…").tag(model.workspaceID)
+                    }
                     ForEach(model.workspaces) { workspace in
                         Text(workspace.name).tag(workspace.id)
                     }
                 }
+                .disabled(model.workspaces.isEmpty)
                 .onChange(of: model.workspaceID) { _, _ in
                     Task { await model.loadTags() }
                 }

@@ -40,6 +40,11 @@ final class ConfigurationModel: ObservableObject {
         self.workspaceID = preferences.effectiveWorkspaceID ?? ""
     }
 
+    /// The workspace as the user would name it, for the confirmation screen.
+    var selectedWorkspaceName: String {
+        workspaces.first { $0.id == workspaceID }?.name ?? "—"
+    }
+
     var canConfirm: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !workspaceID.isEmpty
