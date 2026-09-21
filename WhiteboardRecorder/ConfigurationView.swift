@@ -103,9 +103,14 @@ struct ConfigurationView: View {
                 HStack {
                     DatePicker("Date de réunion", selection: $model.recordedAt,
                                in: ...Date(), displayedComponents: .date)
+                        .fixedSize()
+                    // fixedSize: inside an HStack the time field is otherwise
+                    // compressed below its natural width and clips the hour.
                     DatePicker("", selection: $model.recordedAt,
                                in: ...Date(), displayedComponents: .hourAndMinute)
                         .labelsHidden()
+                        .fixedSize()
+                    Spacer()
                 }
 
                 // Raw API tokens are what travel; what the user reads says what
