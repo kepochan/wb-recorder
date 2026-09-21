@@ -111,3 +111,35 @@ private func withTemporaryDirectory(_ body: (URL) async throws -> Void) async re
     await #expect(throws: APIError.invalidTitle) { _ = try await client.upload(recording) }
     #expect(session.calls.isEmpty)
 }
+
+@Test func a2xxWithAnUnreadableBodyIsStillASuccess() async throws {
+    // The server keeps no copy of the audio, so the caller deletes the only one
+    // the moment this returns. A response shape this app does not recognise must
+    // not turn an accepted upload into a failure that keeps the file and invites
+    // the user to upload the same meeting a second time.
+    try await withTemporaryDirectory { directory in
+        let session = FakeSession()
+        session.nextStatus = 201
+        session.nextBody = Data(#"{"recordingId":"rec-1","state":"queued"}"#.utf8)
+        let client = WhiteboardClient(baseURL: base, apiKey: { "wb_test" }, session: session)
+
+        let result = try await client.upload(try makeRecording(in: directory))
+
+        #expect(result == nil)
+        #expect(session.calls.count == 1)
+    }
+}
+
+@Test func anErrorStatusStillFails() async throws {
+    // The flip side: only the body is forgiving, the status is not.
+    try await withTemporaryDirectory { directory in
+        let session = FakeSession()
+        session.nextStatus = 401
+        session.nextBody = Data(#"{"message":"Invalid or expired API key"}"#.utf8)
+        let client = WhiteboardClient(baseURL: base, apiKey: { "wb_test" }, session: session)
+
+        await #expect(throws: APIError.unauthorized("Invalid or expired API key")) {
+            try await client.upload(try makeRecording(in: directory))
+        }
+    }
+}

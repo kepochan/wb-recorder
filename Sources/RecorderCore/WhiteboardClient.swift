@@ -51,7 +51,12 @@ public struct WhiteboardClient {
 }
 
 extension WhiteboardClient {
-    public func upload(_ recording: RecordingUpload) async throws -> UploadedRecording {
+    /// Returns what the server said about the accepted recording, or nil when a
+    /// 2xx came back in a shape this app does not know. See the note at the
+    /// bottom of the body: a 2xx means the server has the audio, and nothing
+    /// about the response body may turn that into a failure.
+    @discardableResult
+    public func upload(_ recording: RecordingUpload) async throws -> UploadedRecording? {
         let title = recording.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty, title.count <= 255 else { throw APIError.invalidTitle }
         guard recording.recordedAt <= Date() else { throw APIError.recordedAtInFuture }
@@ -79,6 +84,12 @@ extension WhiteboardClient {
 
         let (data, response) = try await session.upload(for: request, fromFile: envelope)
         try check(response, data)
-        return try decode(data)
+        // Past `check` the server has accepted the recording and will transcribe
+        // it — and the server keeps no copy of the audio, so the caller is about
+        // to delete the only one. A body this app cannot decode (a field renamed
+        // server-side, say) is not a reason to report a lost meeting, keep the
+        // file and invite a second upload of the same recording: the success
+        // stands, the description of it is simply missing.
+        return try? JSONDecoder().decode(UploadedRecording.self, from: data)
     }
 }
