@@ -4,8 +4,49 @@ struct ConfigurationView: View {
     @ObservedObject var model: ConfigurationModel
     let onConfirm: () -> Void
     let onCancel: () -> Void
+    let onClose: () -> Void
 
     var body: some View {
+        Group {
+            switch model.phase {
+            case .form: form
+            case .uploading: sending
+            case .sent: sent
+            }
+        }
+        .padding(20)
+        // minWidth, not width: a hard width clamps the content and clips it.
+        .frame(minWidth: 460)
+        .task { await model.load() }
+    }
+
+    private var sending: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Envoi en cours…").font(.headline)
+            ProgressView().progressViewStyle(.linear)
+            Text("L'enregistrement part vers Whiteboard. Ne quitte pas l'app.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var sent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Envoyé", systemImage: "checkmark.circle")
+                .font(.headline)
+                .foregroundStyle(.green)
+            Text("La transcription est en cours côté Whiteboard. La note apparaîtra dans le workspace choisi d'ici une minute ou deux.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("Fermer", action: onClose)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+    }
+
+    private var form: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Enregistrement en cours").font(.headline)
 
@@ -68,10 +109,6 @@ struct ConfigurationView: View {
                     .disabled(!model.canConfirm)
             }
         }
-        .padding(20)
-        // minWidth, not width: see PreferencesView — a hard width clips.
-        .frame(minWidth: 460)
-        .task { await model.load() }
     }
 
     private var tagsSection: some View {

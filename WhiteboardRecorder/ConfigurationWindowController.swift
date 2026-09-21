@@ -32,12 +32,16 @@ final class ConfigurationWindowController: NSWindowController {
         // button, while a recording is running.
         let content = NSHostingController(rootView: ConfigurationView(
             model: model,
-            onConfirm: { [weak self] in
-                onConfirm(model.makeConfiguration())
-                self?.close()
+            onConfirm: {
+                let configuration = model.makeConfiguration()
+                model.phase = .uploading
+                onConfirm(configuration)
             },
             onCancel: { [weak self] in
                 onCancel()
+                self?.close()
+            },
+            onClose: { [weak self] in
                 self?.close()
             }
         ))
@@ -50,6 +54,12 @@ final class ConfigurationWindowController: NSWindowController {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError() }
+
+    /// Called once the upload succeeded, so the window can say so instead of
+    /// vanishing and leaving the user guessing.
+    func showUploadSucceeded() {
+        model.phase = .sent
+    }
 
     func focus() {
         NSApp.activate(ignoringOtherApps: true)

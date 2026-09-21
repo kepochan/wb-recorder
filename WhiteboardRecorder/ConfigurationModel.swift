@@ -14,6 +14,12 @@ final class ConfigurationModel: ObservableObject {
     @Published var tagQuery: String = ""
     @Published var loadingError: String?
 
+    /// What the window is showing: the form, the upload in flight, or the
+    /// confirmation. The window stays up through all three so the user learns
+    /// whether the meeting actually left the machine.
+    enum Phase: Equatable { case form, uploading, sent }
+    @Published var phase: Phase = .form
+
     let systemAudioAvailable: Bool
     let deviceWatchArmed: Bool
     private let preferences: Preferences

@@ -250,12 +250,18 @@ final class MenuBarController: NSObject {
             do {
                 try await client.upload(recording)
                 self.apply(self.flow.handle(.uploadSucceeded))
+                // The window is still up showing "Envoi en cours…". Tell it the
+                // upload landed rather than letting it vanish silently.
+                self.configurationWindow?.showUploadSucceeded()
             } catch let error as APIError {
+                // The alert would open behind the window otherwise.
+                self.configurationWindow?.close()
                 self.apply(self.flow.handle(.uploadFailed(error.message)))
                 // A dead key cannot be retried into working, so the alert offers
                 // the Préférences instead of "Réessayer".
                 self.presentFailure(error.message, isAuthFailure: error.isAuthenticationFailure)
             } catch {
+                self.configurationWindow?.close()
                 self.apply(self.flow.handle(.uploadFailed(error.localizedDescription)))
                 self.presentFailure(error.localizedDescription)
             }
