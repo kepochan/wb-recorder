@@ -16,11 +16,21 @@ struct PreferencesView: View {
 
                 TextField("URL de l'API", text: $model.apiBaseURL)
 
+                // The workspace list only exists once a key has actually been
+                // accepted by the server, so the picker stays disabled until
+                // then rather than offering an empty choice.
                 Picker("Workspace par défaut", selection: $model.defaultWorkspaceID) {
                     Text("—").tag("")
                     ForEach(model.workspaces) { workspace in
                         Text(workspace.name).tag(workspace.id)
                     }
+                }
+                .disabled(model.workspaces.isEmpty)
+
+                if model.workspaces.isEmpty {
+                    Text("Colle ta clé API et clique sur Tester pour charger tes workspaces.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 TextField("IP de l'ESP32 (vide = désactivé)", text: $model.esp32Host)
