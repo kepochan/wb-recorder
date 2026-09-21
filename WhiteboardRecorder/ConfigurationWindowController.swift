@@ -30,7 +30,7 @@ final class ConfigurationWindowController: NSWindowController {
         // OK/Annuler row once both warning banners and a few tag chips were on
         // screen, and that row is the only way out of a window with no close
         // button, while a recording is running.
-        window.contentViewController = NSHostingController(rootView: ConfigurationView(
+        let content = NSHostingController(rootView: ConfigurationView(
             model: model,
             onConfirm: { [weak self] in
                 onConfirm(model.makeConfiguration())
@@ -41,6 +41,10 @@ final class ConfigurationWindowController: NSWindowController {
                 self?.close()
             }
         ))
+        window.contentViewController = content
+        // Assigning the controller does not resize the window; without this the
+        // window keeps the contentRect above and clips whatever exceeds it.
+        window.setContentSize(content.view.fittingSize)
         window.center()
     }
 

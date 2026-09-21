@@ -19,13 +19,14 @@ final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         super.init(window: window)
         window.delegate = self
-        // `contentViewController` — not `contentView` — so the window takes its
-        // size from the SwiftUI content. With `contentView` the window keeps the
-        // fixed contentRect above and any content wider than it overflows,
-        // clipped on both sides.
-        window.contentViewController = NSHostingController(rootView: PreferencesView(model: model) { [weak self] in
+        // The window must be told its size: assigning `contentViewController`
+        // does not resize it, and a window narrower than the content clips it
+        // on both sides rather than compressing it.
+        let content = NSHostingController(rootView: PreferencesView(model: model) { [weak self] in
             self?.close()
         })
+        window.contentViewController = content
+        window.setContentSize(content.view.fittingSize)
         window.center()
     }
 
