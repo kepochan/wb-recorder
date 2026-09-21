@@ -225,11 +225,13 @@ final class MenuBarController: NSObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                _ = try await client.upload(recording)
+                try await client.upload(recording)
                 self.apply(self.flow.handle(.uploadSucceeded))
             } catch let error as APIError {
                 self.apply(self.flow.handle(.uploadFailed(error.message)))
-                self.presentFailure(error.message)
+                // A dead key cannot be retried into working, so the alert offers
+                // the Préférences instead of "Réessayer".
+                self.presentFailure(error.message, isAuthFailure: error.isAuthenticationFailure)
             } catch {
                 self.apply(self.flow.handle(.uploadFailed(error.localizedDescription)))
                 self.presentFailure(error.localizedDescription)
@@ -309,9 +311,15 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func showPreferences() {
+        presentPreferences()
+    }
+
+    /// `onClose` fires once, when the window goes away. The 401 path uses it to
+    /// bring the failure alert back with a "Réessayer" that can now work.
+    func presentPreferences(onClose: (() -> Void)? = nil) {
         let controller = preferencesWindow ?? PreferencesWindowController(preferences: preferences, keychain: keychain)
         preferencesWindow = controller
-        controller.show()
+        controller.show(onClose: onClose)
     }
 
     @objc private func quit() {

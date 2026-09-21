@@ -3,6 +3,7 @@ import AppKit
 enum FailureAlert {
     enum Choice {
         case retry
+        case openPreferences
         case save
         case dismiss
     }
@@ -11,40 +12,63 @@ enum FailureAlert {
     /// there is simply no file to send): retrying an upload that was never
     /// going to have anything valid to send cannot succeed, so "Réessayer" is
     /// not offered and the honest choices are "Enregistrer…" or "Fermer".
-    static func present(message: String, saveFolder: URL, canRetry: Bool) -> Choice {
+    ///
+    /// `isAuthFailure` replaces "Réessayer" with the Préférences: the same dead
+    /// key can only fail again, so sending the user there is the only move that
+    /// changes anything.
+    ///
+    /// `canSave` is false when nothing was ever written to disk. Both the
+    /// "Enregistrer…" button and the sentence promising the file will land in
+    /// the save folder are then dropped — otherwise the alert sends the user
+    /// hunting through Téléchargements for a file that never existed.
+    static func present(message: String,
+                        saveFolderName: String,
+                        canRetry: Bool,
+                        canSave: Bool,
+                        isAuthFailure: Bool) -> Choice {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "Envoi impossible"
-        alert.informativeText = """
-        \(message)
+        alert.informativeText = canSave
+            ? """
+              \(message)
 
-        L'enregistrement est conservé. Sans action de ta part, il sera déposé dans \
-        \(saveFolder.lastPathComponent).
-        """
-        if canRetry {
+              L'enregistrement est conservé. Sans action de ta part, il sera déposé dans \
+              \(saveFolderName).
+              """
+            : message
+
+        // Built in parallel so the response can be read back by position
+        // whichever combination of buttons this failure deserves.
+        var choices: [Choice] = []
+        if isAuthFailure {
+            alert.addButton(withTitle: "Ouvrir les Préférences…")
+            choices.append(.openPreferences)
+        } else if canRetry {
             alert.addButton(withTitle: "Réessayer")
+            choices.append(.retry)
         }
-        alert.addButton(withTitle: "Enregistrer…")
+        if canSave {
+            alert.addButton(withTitle: "Enregistrer…")
+            choices.append(.save)
+        }
         alert.addButton(withTitle: "Fermer")
+        choices.append(.dismiss)
 
-        let response = alert.runModal()
-        if canRetry {
-            switch response {
-            case .alertFirstButtonReturn: return .retry
-            case .alertSecondButtonReturn: return .save
-            default: return .dismiss
-            }
-        } else {
-            switch response {
-            case .alertFirstButtonReturn: return .save
-            default: return .dismiss
-            }
-        }
+        let index = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        return choices.indices.contains(index) ? choices[index] : .dismiss
     }
 }
 
 extension MenuBarController {
-    func presentFailure(_ message: String, canRetry: Bool = true) {
+    /// Finder shows folders under their localized names — « Téléchargements »,
+    /// not "Downloads". Naming the folder by `lastPathComponent` sent French
+    /// users looking for a folder they never see spelled that way.
+    var saveFolderDisplayName: String {
+        FileManager.default.displayName(atPath: preferences.saveFolder.path)
+    }
+
+    func presentFailure(_ message: String, canRetry: Bool = true, isAuthFailure: Bool = false) {
         // `flow.state` is still `.failed` right here, but `flow.handle` below
         // moves it to `.idle` before returning `.moveFileToSaveFolder` — by the
         // time that effect runs, the title can no longer be read from the
@@ -53,7 +77,15 @@ extension MenuBarController {
             lastFailedTitle = configuration.title
         }
 
-        switch FailureAlert.present(message: message, saveFolder: preferences.saveFolder, canRetry: canRetry) {
+        // Both the "Enregistrer…" button and the promise that the recording will
+        // be dropped in the save folder are only honest if a file is really there.
+        let hasFile = currentFileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+
+        switch FailureAlert.present(message: message,
+                                    saveFolderName: saveFolderDisplayName,
+                                    canRetry: canRetry,
+                                    canSave: hasFile,
+                                    isAuthFailure: isAuthFailure) {
         case .retry:
             // Deferred to the next run loop turn so this call frame — and the
             // NSAlert.runModal() it is still returning from — unwinds first.
@@ -65,6 +97,17 @@ extension MenuBarController {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.apply(self.flow.handle(.retryRequested))
+            }
+        case .openPreferences:
+            // The flow deliberately stays `.failed`: the recording is still
+            // held, and once the key has been fixed the same alert comes back —
+            // this time with a "Réessayer" that can actually succeed. If the app
+            // is quit instead, `prepareForTermination` still rescues the file.
+            presentPreferences { [weak self] in
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, case let .failed(_, message) = self.flow.state else { return }
+                    self.presentFailure(message)
+                }
             }
         case .save:
             saveCurrentFileWithPanel()

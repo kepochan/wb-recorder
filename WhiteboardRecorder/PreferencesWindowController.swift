@@ -1,8 +1,12 @@
 import AppKit
 import SwiftUI
 
-final class PreferencesWindowController: NSWindowController {
+final class PreferencesWindowController: NSWindowController, NSWindowDelegate {
     private let model: PreferencesModel
+
+    /// Fired once when the window closes, then cleared so a later open — which
+    /// reuses this very controller — cannot inherit it.
+    private var onClose: (() -> Void)?
 
     init(preferences: Preferences, keychain: KeychainStore) {
         let model = PreferencesModel(preferences: preferences, keychain: keychain)
@@ -14,6 +18,7 @@ final class PreferencesWindowController: NSWindowController {
         window.title = "Whiteboard Recorder — Préférences"
         window.isReleasedWhenClosed = false
         super.init(window: window)
+        window.delegate = self
         window.contentView = NSHostingView(rootView: PreferencesView(model: model) { [weak self] in
             self?.close()
         })
@@ -32,11 +37,18 @@ final class PreferencesWindowController: NSWindowController {
     /// currently visible closes that gap, while leaving an already-visible
     /// window (a second click while it's open) untouched so it doesn't wipe
     /// an edit in progress.
-    func show() {
+    func show(onClose: (() -> Void)? = nil) {
+        self.onClose = onClose
         if window?.isVisible != true {
             model.reload()
         }
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        let callback = onClose
+        onClose = nil
+        callback?()
     }
 }
