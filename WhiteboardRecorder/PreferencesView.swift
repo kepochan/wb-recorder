@@ -36,13 +36,21 @@ struct PreferencesView: View {
             if let result = model.testResult {
                 Text(result).font(.caption)
             }
+            if let error = model.saveError {
+                Text(error).font(.caption).foregroundStyle(.red)
+            }
 
             HStack {
                 Button("Tester") { Task { await model.test() } }
                 Spacer()
                 Button("Enregistrer") {
                     model.save()
-                    onClose()
+                    // A rejected URL or a failed Keychain write must stay
+                    // visible so the user can fix it — closing here would
+                    // hide the one place that error is shown.
+                    if model.saveError == nil {
+                        onClose()
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
             }

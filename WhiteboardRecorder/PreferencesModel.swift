@@ -11,6 +11,11 @@ final class PreferencesModel: ObservableObject {
     @Published var workspaces: [Workspace] = []
     @Published var defaultWorkspaceID: String = ""
     @Published var testResult: String?
+    /// Set by `save()` when the API key couldn't be written to the Keychain
+    /// or the API URL was rejected. Both failures are silent otherwise —
+    /// this is the one place the user is told why nothing (or only part of
+    /// what they typed) was actually persisted.
+    @Published var saveError: String?
 
     private let preferences: Preferences
     private let keychain: KeychainStore
@@ -34,9 +39,12 @@ final class PreferencesModel: ObservableObject {
         saveFolder = preferences.saveFolder
         defaultWorkspaceID = preferences.defaultWorkspaceID ?? ""
         testResult = nil
+        saveError = nil
     }
 
     func save() {
+        var errors: [String] = []
+
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         // An empty field means "remove the key", not "store an empty
         // string" — writing "" would make `keychain.read()` return a
@@ -45,14 +53,46 @@ final class PreferencesModel: ObservableObject {
         if trimmedKey.isEmpty {
             keychain.delete()
         } else {
-            try? keychain.save(trimmedKey)
+            do {
+                try keychain.save(trimmedKey)
+            } catch {
+                // The key is the app's only credential: a swallowed write
+                // failure would leave the user certain they're configured
+                // while every recording fails to upload. Say so instead.
+                errors.append("La clé API n'a pas pu être enregistrée dans le Trousseau.")
+            }
         }
-        if let url = URL(string: apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)) {
+
+        let trimmedURL = apiBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedURL.isEmpty {
+            // An explicitly cleared field restores the default instead of
+            // silently keeping whatever URL was stored before.
+            preferences.apiBaseURL = Preferences.defaultAPIBaseURL
+            apiBaseURL = Preferences.defaultAPIBaseURL.absoluteString
+        } else if let url = Self.validatedAPIBaseURL(trimmedURL) {
             preferences.apiBaseURL = url
+        } else {
+            // URL(string:) is lenient — "example.com" or "not a url" both
+            // parse into a technically-valid but unusable URL. Reject
+            // anything without an http(s) scheme and a host instead of
+            // silently saving an endpoint the app can never reach, and
+            // leave the previously stored value untouched.
+            errors.append("URL de l'API invalide : elle doit commencer par http:// ou https:// et indiquer un serveur.")
         }
+
         preferences.esp32Host = esp32Host
         preferences.saveFolder = saveFolder
         preferences.defaultWorkspaceID = defaultWorkspaceID.isEmpty ? nil : defaultWorkspaceID
+
+        saveError = errors.isEmpty ? nil : errors.joined(separator: "\n")
+    }
+
+    private static func validatedAPIBaseURL(_ string: String) -> URL? {
+        guard let url = URL(string: string),
+              let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+              let host = url.host, !host.isEmpty
+        else { return nil }
+        return url
     }
 
     func test() async {
