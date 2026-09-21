@@ -41,8 +41,10 @@ final class MenuBarController: NSObject {
 
     // MARK: - Menu
 
+    private static let preferencesTitle = "Préférences…"
+
     private func buildMenu() {
-        let preferencesItem = NSMenuItem(title: "Préférences…", action: #selector(showPreferences), keyEquivalent: ",")
+        let preferencesItem = NSMenuItem(title: Self.preferencesTitle, action: #selector(showPreferences), keyEquivalent: ",")
         preferencesItem.target = self
         contextMenu.addItem(preferencesItem)
         contextMenu.addItem(.separator())
@@ -58,6 +60,18 @@ final class MenuBarController: NSObject {
 
         if isRightClick {
             showMenu()
+            return
+        }
+
+        // The key and microphone checks only make sense for the click that
+        // starts a new recording. Gating every click on them meant that
+        // revoking either while a recording was running swallowed the click
+        // that should have stopped it: capture kept running, the icon stayed
+        // `.recording`, and only a relaunch recovered. Stopping (or focusing
+        // the configuration window, or a no-op while uploading/failed) must
+        // always reach the flow.
+        guard case .idle = flow.state else {
+            apply(flow.handle(.iconClicked))
             return
         }
 
@@ -78,6 +92,8 @@ final class MenuBarController: NSObject {
         if case let .recording(startedAt, _) = flow.state {
             let elapsed = Int(Date().timeIntervalSince(startedAt))
             contextMenu.item(at: 0)?.title = String(format: "Enregistrement — %02d:%02d", elapsed / 60, elapsed % 60)
+        } else {
+            contextMenu.item(at: 0)?.title = Self.preferencesTitle
         }
         contextMenu.popUp(positioning: nil,
                           at: NSPoint(x: button.bounds.midX, y: button.bounds.minY),
@@ -175,16 +191,22 @@ final class MenuBarController: NSObject {
         if let captureFailureMessage {
             // The capture itself failed before there was ever anything to
             // upload; take the flow straight to its normal failure path so the
-            // Task 14 alert appears instead of silently doing nothing.
+            // Task 14 alert appears instead of silently doing nothing. Retrying
+            // a capture that never produced a valid file cannot succeed, so
+            // Réessayer is not offered here — which also means presentFailure
+            // can never be re-entered synchronously from its own `.retry` case
+            // for this kind of failure.
             apply(flow.handle(.uploadFailed(captureFailureMessage)))
-            presentFailure(captureFailureMessage)
+            presentFailure(captureFailureMessage, canRetry: false)
             return
         }
 
         guard let fileURL = currentFileURL else {
+            // No capture failure was recorded, yet there is no file either —
+            // nothing retrying would change, so this is not offered either.
             let message = "Le fichier audio est introuvable."
             apply(flow.handle(.uploadFailed(message)))
-            presentFailure(message)
+            presentFailure(message, canRetry: false)
             return
         }
 
