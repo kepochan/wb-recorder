@@ -1,85 +1,100 @@
 # Whiteboard Recorder
 
-App macOS de barre de menu : elle enregistre ta réunion — **micro et audio système
-mixés dans un seul fichier** — et l'envoie à [Whiteboard](https://whiteboard.kepochan.com),
-qui la transcrit et en fait une note.
+A macOS menu bar app that records your meeting — **microphone and system audio
+mixed into a single file** — and uploads it to
+[Whiteboard](https://whiteboard.kepochan.com), which transcribes it into a note.
 
-Elle remplace `meeting-agent-client-mac`, dont le backend s'éteint.
+It replaces `meeting-agent-client-mac`, whose backend is being shut down.
 
-## L'app vit dans la barre de menu, nulle part ailleurs
+## The app lives in the menu bar, nowhere else
 
-Whiteboard Recorder n'a **ni icône dans le Dock, ni fenêtre au lancement** (elle
-est `LSUIElement`). Un cercle apparaît dans la barre de menu, en haut de l'écran :
-c'est tout ce qu'il y a à voir tant qu'aucun enregistrement n'est en cours. Si tu
-la lances et que rien ne semble se passer, c'est normal — cherche le cercle dans
-la barre de menu, pas une fenêtre.
+Whiteboard Recorder has **no Dock icon and opens no window** (it is
+`LSUIElement`). A circle appears in the menu bar at the top of the screen, and
+that is all there is to see while nothing is being recorded. If you launch it
+and nothing seems to happen, that is expected — look for the circle in the menu
+bar, not for a window.
 
-## Installation
+## Installing
 
-1. Télécharger `WhiteboardRecorder.zip`, décompresser, glisser l'app dans `/Applications`.
-2. Au premier lancement, cliquer sur le cercle dans la barre de menu (clic droit)
-   et ouvrir **Préférences…** pour coller une clé API. La clé se crée dans
-   Whiteboard, sous **Settings → API keys**, avec les scopes `recordings:read`
-   et `recordings:write` pour envoyer les enregistrements, plus `notes:read`
-   pour que l'app puisse proposer les tags existants du workspace.
-3. Lancer un premier enregistrement (clic gauche sur le cercle). macOS demande
-   alors **deux autorisations**, l'une après l'autre — ni avant, ni au lancement
-   de l'app :
-   - l'accès au **micro** ;
-   - l'accès à la **capture audio des autres applications** (« Enregistrer
-     l'audio des autres apps » dans Réglages Système → Confidentialité et
-     sécurité).
+1. Download `WhiteboardRecorder.zip`, unzip it, drag the app into `/Applications`.
+2. On first launch, right-click the circle in the menu bar and open
+   **Préférences…** to paste an API key. Create the key in Whiteboard under
+   **Settings → API keys**, with the scopes `recordings:read` and
+   `recordings:write` to upload, plus `notes:read` so the app can offer the
+   workspace's existing tags.
+3. Start a first recording (left-click the circle). macOS then asks for **two
+   permissions**, one after the other — not before, and not at launch:
+   - access to the **microphone**;
+   - permission to **capture audio from other applications** ("Audio Recording"
+     in System Settings → Privacy & Security).
 
-   Les deux sont nécessaires. Sans la seconde, seule ta propre voix est
-   enregistrée : les autres participants de l'appel restent muets sur
-   l'enregistrement.
+   Both are needed. Without the second one only your own voice is recorded, and
+   the other participants in the call are silent on the recording.
 
-## Utilisation
+The app is signed but not notarised. On a machine other than the one it was
+built on, macOS blocks the first launch: allow it from System Settings →
+Privacy & Security.
 
-- **Clic gauche** : démarre l'enregistrement **immédiatement** — rien n'est
-  perdu pendant que tu remplis quoi que ce soit — et ouvre par-dessus la fenêtre
-  de configuration (workspace, titre, date, langue, visibilité, tags).
-- **Clic gauche** à nouveau : arrête l'enregistrement et l'envoie.
-- **Clic droit** : durée de l'enregistrement en cours, **Préférences…**, **Quitter**.
+## Using it
 
-L'audio n'est pas conservé sur le serveur : il est supprimé une fois la
-transcription faite. L'app garde sa copie locale jusqu'à l'envoi réussi, puis la
-supprime.
+- **Left-click**: starts recording **immediately**. Nothing else happens and
+  nothing is asked, so no part of the meeting is lost.
+- **Left-click again**: stops the recording, then asks for the details —
+  workspace, title, meeting date and time, language, visibility, tags. The
+  meeting date defaults to the instant the recording *started*, not the instant
+  it stopped.
+- **OK** uploads. The window stays up and tells you whether the upload landed,
+  naming the workspace it went to; it closes when you say so.
+- **Enregistrer une copie…** keeps a copy of the `.m4a` before it is sent. The
+  local file is deleted once the upload succeeds, so this is the moment to ask
+  for one.
+- **Annuler** throws the recording away.
+- **Right-click**: elapsed time while recording, **Préférences…**, **Quitter**.
 
-## En cas d'échec de l'envoi
+The audio is not kept on the server: it is deleted once transcribed. The app
+keeps its local copy until the upload succeeds, then deletes it.
 
-L'enregistrement local **n'est jamais supprimé** en cas d'échec. Une alerte
-propose :
+Tags are chosen from the tags that already exist in the workspace — the app
+never invents one, and never sends a colour it did not receive. The server adds
+the `meeting` tag by itself.
 
-- **Réessayer** (quand un nouvel envoi peut raisonnablement réussir) ;
-- **Enregistrer…**, pour choisir où mettre le fichier `.m4a` ;
+## When an upload fails
+
+The local recording is **never deleted** on failure. An alert offers:
+
+- **Réessayer**, when another attempt could plausibly succeed;
+- **Enregistrer…**, to choose where to put the `.m4a`;
 - **Fermer**.
 
-Si tu fermes l'alerte sans choisir, ou si l'échec vient de l'enregistrement
-lui-même (pas de l'envoi), le fichier atterrit automatiquement dans ton dossier
-de sauvegarde — `~/Downloads` par défaut, réglable dans les Préférences.
+If you dismiss the alert without choosing, or if the failure came from the
+recording itself rather than from the upload, the file is moved to your save
+folder — `~/Downloads` by default, configurable in the preferences.
 
-## Clé API
+Quitting the app mid-recording does not lose it either: the recording is
+finalised, moved to the save folder, and the app tells you where it went. A file
+left behind by a crash is recovered the next time the app starts.
 
-La clé est stockée dans le Trousseau macOS (Keychain), jamais dans les
-préférences en clair ni dans un fichier du projet. Elle doit porter les scopes
-`recordings:read`, `recordings:write` et `notes:read`, et se crée dans Whiteboard sous
+## API key
+
+The key is stored in the macOS Keychain, never in the preferences in clear text
+and never in a file in this repository. It needs the scopes `recordings:read`,
+`recordings:write` and `notes:read`, and is created in Whiteboard under
 **Settings → API keys**.
 
-## Note technique : le bac à sable (sandbox)
+## Technical note: the sandbox
 
-L'app garde l'App Sandbox actif (`com.apple.security.app-sandbox`). C'est
-possible parce que les *process taps* CoreAudio (`AudioHardwareCreateProcessTap`),
-utilisés ici pour capter l'audio système sans extension noyau, **fonctionnent
-sous App Sandbox** — un point qu'Apple ne documente pas, et qui a été vérifié
-avant d'investir dans le reste de la capture.
+The app keeps App Sandbox enabled (`com.apple.security.app-sandbox`). That is
+possible because CoreAudio *process taps*
+(`AudioHardwareCreateProcessTap`) — used here to capture system audio without a
+kernel extension — **work under App Sandbox**. Apple does not document this; it
+was verified before the rest of the capture was built on top of it.
 
-## Développement
+## Development
 
 ```bash
-swift test         # la logique métier (RecorderCore), sans Xcode
-./run.sh            # compile en debug et lance l'app
-./build-release.sh  # produit WhiteboardRecorder.app et WhiteboardRecorder.zip
+swift test          # the business logic (RecorderCore), without Xcode
+./run.sh            # builds in debug and launches the app
+./build-release.sh  # produces WhiteboardRecorder.app and WhiteboardRecorder.zip
 ```
 
-Aucune clé API ne doit figurer dans le code, les scripts, ou un commit.
+No API key may appear in the code, in a script, or in a commit.
