@@ -97,8 +97,16 @@ struct ConfigurationView: View {
 
                 TextField("Titre", text: $model.title)
 
-                DatePicker("Date de réunion", selection: $model.recordedAt,
-                           in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                // Two fields on one line: the day and the time are edited
+                // separately but write the same instant, and each keeps the
+                // other's value untouched.
+                HStack {
+                    DatePicker("Date de réunion", selection: $model.recordedAt,
+                               in: ...Date(), displayedComponents: .date)
+                    DatePicker("", selection: $model.recordedAt,
+                               in: ...Date(), displayedComponents: .hourAndMinute)
+                        .labelsHidden()
+                }
 
                 // Raw API tokens are what travel; what the user reads says what
                 // the choice does.
