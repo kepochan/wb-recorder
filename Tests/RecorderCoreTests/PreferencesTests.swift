@@ -46,3 +46,18 @@ private func makePreferences() -> Preferences {
     preferences.lastWorkspaceID = "uuid-last"
     #expect(preferences.effectiveWorkspaceID == "uuid-last")
 }
+
+@Test func bothPickersHaveAFrenchLabelForEveryRawValue() {
+    // The raw values are the contract with the API; these are only ever read.
+    for code in Preferences.languages {
+        #expect(Preferences.languageName(code) != code)
+    }
+    for mode in Preferences.sharingModes {
+        #expect(Preferences.sharingModeName(mode) != mode)
+    }
+    #expect(Preferences.languageName("fr") == "Français")
+    #expect(Preferences.sharingModeName("open-bar").hasPrefix("Publique"))
+    // An unknown value coming back from a future API still shows as itself
+    // rather than as an empty picker row.
+    #expect(Preferences.sharingModeName("teams-only") == "teams-only")
+}

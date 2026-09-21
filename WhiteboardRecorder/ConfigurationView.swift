@@ -34,12 +34,18 @@ struct ConfigurationView: View {
                 DatePicker("Date de réunion", selection: $model.recordedAt,
                            in: ...Date(), displayedComponents: [.date, .hourAndMinute])
 
+                // Raw API tokens are what travel; what the user reads says what
+                // the choice does.
                 Picker("Langue", selection: $model.language) {
-                    ForEach(Preferences.languages, id: \.self) { Text($0).tag($0) }
+                    ForEach(Preferences.languages, id: \.self) {
+                        Text(Preferences.languageName($0)).tag($0)
+                    }
                 }
 
                 Picker("Visibilité", selection: $model.sharingMode) {
-                    ForEach(Preferences.sharingModes, id: \.self) { Text($0).tag($0) }
+                    ForEach(Preferences.sharingModes, id: \.self) {
+                        Text(Preferences.sharingModeName($0)).tag($0)
+                    }
                 }
             }
 

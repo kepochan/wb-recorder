@@ -5,6 +5,33 @@ public final class Preferences {
     public static let sharingModes = ["private", "protected", "limited", "editable", "public", "open-bar"]
     public static let defaultAPIBaseURL = URL(string: "https://whiteboard-api.kepochan.com")!
 
+    /// French label for a language code. The raw code is what the API receives;
+    /// this only ever reaches the screen.
+    public static func languageName(_ code: String) -> String {
+        switch code {
+        case "auto": return "Détection automatique"
+        case "fr": return "Français"
+        case "en": return "Anglais"
+        default: return code
+        }
+    }
+
+    /// French label for a sharing mode, phrased as what the choice does rather
+    /// than as a translation of the API token — `limited` or `open-bar` mean
+    /// nothing to someone who has not read the Whiteboard documentation. The
+    /// raw token is still what gets sent.
+    public static func sharingModeName(_ mode: String) -> String {
+        switch mode {
+        case "private": return "Privée — moi seul"
+        case "protected": return "Espace de travail — lecture"
+        case "limited": return "Espace de travail — sur invitation"
+        case "editable": return "Espace de travail — lecture et modification"
+        case "public": return "Publique — lecture avec le lien"
+        case "open-bar": return "Publique — lecture et modification avec le lien"
+        default: return mode
+        }
+    }
+
     private let defaults: UserDefaults
 
     public init(defaults: UserDefaults = .standard) {
