@@ -27,6 +27,16 @@ public enum APIError: Error, Equatable {
         }
     }
 
+    /// True when the request was refused because of the API key itself.
+    /// Retrying with the same dead key can only fail again, so the failure
+    /// alert offers the Préférences instead of "Réessayer".
+    public var isAuthenticationFailure: Bool {
+        switch self {
+        case .noAPIKey, .unauthorized: return true
+        default: return false
+        }
+    }
+
     public var message: String {
         switch self {
         case .noAPIKey:
@@ -37,14 +47,20 @@ public enum APIError: Error, Equatable {
             return "La date de réunion ne peut pas être dans le futur."
         case let .badRequest(messages):
             return messages.isEmpty ? "Requête refusée par le serveur." : messages.joined(separator: "\n")
-        case .unauthorized:
-            return "Clé API absente, invalide ou révoquée."
+        case let .unauthorized(detail):
+            return detail.isEmpty
+                ? "Clé API absente, invalide ou révoquée."
+                : "Clé API absente, invalide ou révoquée : \(detail)"
         case let .forbidden(detail):
             return detail.isEmpty ? "Tu n'es pas membre de ce workspace." : "Accès refusé : \(detail)"
         case let .notFound(detail):
             return detail.isEmpty ? "Ressource introuvable." : detail
-        case .conflict:
-            return "Une note portant ce slug existe déjà."
+        case let .conflict(detail):
+            // The app never sends a slug and the user has never seen one, so
+            // the collision is named by what they did choose: title and date.
+            return detail.isEmpty
+                ? "Une note existe déjà pour ce titre et cette date de réunion."
+                : "Une note existe déjà pour ce titre et cette date de réunion : \(detail)"
         case .tooLarge:
             return "Fichier trop volumineux (limite : 1 Gio)."
         case let .server(status, detail):
