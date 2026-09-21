@@ -3,6 +3,7 @@ import SwiftUI
 
 final class ConfigurationWindowController: NSWindowController {
     private let model: ConfigurationModel
+    private var content: NSHostingController<ConfigurationView>?
 
     init(startedAt: Date,
          preferences: Preferences,
@@ -32,9 +33,10 @@ final class ConfigurationWindowController: NSWindowController {
         // button, while a recording is running.
         let content = NSHostingController(rootView: ConfigurationView(
             model: model,
-            onConfirm: {
+            onConfirm: { [weak self] in
                 let configuration = model.makeConfiguration()
                 model.phase = .uploading
+                self?.fitToContent()
                 onConfirm(configuration)
             },
             onCancel: { [weak self] in
@@ -45,6 +47,7 @@ final class ConfigurationWindowController: NSWindowController {
                 self?.close()
             }
         ))
+        self.content = content
         window.contentViewController = content
         // Assigning the controller does not resize the window; without this the
         // window keeps the contentRect above and clips whatever exceeds it.
@@ -59,6 +62,17 @@ final class ConfigurationWindowController: NSWindowController {
     /// vanishing and leaving the user guessing.
     func showUploadSucceeded() {
         model.phase = .sent
+        fitToContent()
+    }
+
+    /// Each screen of this window is a different height; without resizing on
+    /// the way through, the window keeps the form's size and clips whatever
+    /// comes after it. SwiftUI lays out on the next turn, hence the hop.
+    private func fitToContent() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let window = self.window, let content = self.content else { return }
+            window.setContentSize(content.view.fittingSize)
+        }
     }
 
     func focus() {

@@ -24,7 +24,10 @@ struct ConfigurationView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Envoi en cours…").font(.headline)
             ProgressView().progressViewStyle(.linear)
-            Text("Envoi de « \(model.title) » vers \(model.selectedWorkspaceName). Ne quitte pas l'app.")
+            Text("Envoi de « \(model.title) » vers \(model.selectedWorkspaceName).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("Ne quitte pas l'app avant la fin.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -35,7 +38,10 @@ struct ConfigurationView: View {
             Label("Envoyé", systemImage: "checkmark.circle")
                 .font(.headline)
                 .foregroundStyle(.green)
-            Text("« \(model.title) » est parti dans \(model.selectedWorkspaceName). La transcription est en cours ; la note y apparaîtra d'ici une minute ou deux.")
+            Text("« \(model.title) » est parti dans \(model.selectedWorkspaceName).")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("La transcription est en cours ; la note y apparaîtra d'ici une minute ou deux.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack {
