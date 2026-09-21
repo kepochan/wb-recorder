@@ -25,7 +25,12 @@ final class ConfigurationWindowController: NSWindowController {
         window.isReleasedWhenClosed = false
         super.init(window: window)
 
-        window.contentView = NSHostingView(rootView: ConfigurationView(
+        // `contentViewController` — not `contentView` — so the window takes its
+        // height from the content. Pinned at 460 points it could clip the
+        // OK/Annuler row once both warning banners and a few tag chips were on
+        // screen, and that row is the only way out of a window with no close
+        // button, while a recording is running.
+        window.contentViewController = NSHostingController(rootView: ConfigurationView(
             model: model,
             onConfirm: { [weak self] in
                 onConfirm(model.makeConfiguration())
