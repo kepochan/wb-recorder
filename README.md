@@ -20,7 +20,8 @@ la barre de menu, pas une fenêtre.
 2. Au premier lancement, cliquer sur le cercle dans la barre de menu (clic droit)
    et ouvrir **Préférences…** pour coller une clé API. La clé se crée dans
    Whiteboard, sous **Settings → API keys**, avec les scopes `recordings:read`
-   et `recordings:write`.
+   et `recordings:write` pour envoyer les enregistrements, plus `notes:read`
+   pour que l'app puisse proposer les tags existants du workspace.
 3. Lancer un premier enregistrement (clic gauche sur le cercle). macOS demande
    alors **deux autorisations**, l'une après l'autre — ni avant, ni au lancement
    de l'app :
@@ -62,7 +63,7 @@ de sauvegarde — `~/Downloads` par défaut, réglable dans les Préférences.
 
 La clé est stockée dans le Trousseau macOS (Keychain), jamais dans les
 préférences en clair ni dans un fichier du projet. Elle doit porter les scopes
-`recordings:read` et `recordings:write`, et se crée dans Whiteboard sous
+`recordings:read`, `recordings:write` et `notes:read`, et se crée dans Whiteboard sous
 **Settings → API keys**.
 
 ## Note technique : le bac à sable (sandbox)

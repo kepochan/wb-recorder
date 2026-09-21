@@ -13,7 +13,7 @@ struct PreferencesView: View {
                     SecureField("Clé API", text: $model.apiKey)
                     Button("Tester") { Task { await model.test() } }
                 }
-                Text("Whiteboard → Settings → API keys, scopes recordings:read et recordings:write.")
+                Text("Whiteboard → Settings → API keys. Scopes : recordings:read et recordings:write pour envoyer, plus notes:read pour proposer les tags du workspace.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
