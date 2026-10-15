@@ -62,6 +62,7 @@ struct ConfigurationView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 if case .paused = uploadStatus {
+                    Button("Stop upload") { uploads.stopPaused() }
                     Button("Resume upload") { uploads.resume() }
                 }
                 Button("Close", action: onClose)

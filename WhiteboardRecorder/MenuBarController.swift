@@ -55,6 +55,7 @@ import UniformTypeIdentifiers
     /// "Resume upload" while the queue is paused.
     private let uploadStatusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let resumeUploadItem = NSMenuItem(title: "Resume upload", action: #selector(resumeUpload), keyEquivalent: "")
+    private let stopUploadItem = NSMenuItem(title: "Stop upload…", action: #selector(stopPausedUpload), keyEquivalent: "")
     private let uploadSeparator = NSMenuItem.separator()
 
     private func buildMenu() {
@@ -64,10 +65,13 @@ import UniformTypeIdentifiers
         contextMenu.addItem(durationSeparator)
         uploadStatusItem.isHidden = true
         resumeUploadItem.isHidden = true
+        stopUploadItem.isHidden = true
         uploadSeparator.isHidden = true
         resumeUploadItem.target = self
+        stopUploadItem.target = self
         contextMenu.addItem(uploadStatusItem)
         contextMenu.addItem(resumeUploadItem)
+        contextMenu.addItem(stopUploadItem)
         contextMenu.addItem(uploadSeparator)
         let preferencesItem = NSMenuItem(title: Self.preferencesTitle, action: #selector(showPreferences), keyEquivalent: ",")
         preferencesItem.target = self
@@ -128,17 +132,20 @@ import UniformTypeIdentifiers
         case .idle:
             uploadStatusItem.isHidden = true
             resumeUploadItem.isHidden = true
+            stopUploadItem.isHidden = true
             uploadSeparator.isHidden = true
         case let .uploading(_, title, sent, total):
             let percent = total > 0 ? Int(sent * 100 / total) : 0
             uploadStatusItem.title = "Uploading “\(title)” — \(percent)%\(waiting)"
             uploadStatusItem.isHidden = false
             resumeUploadItem.isHidden = true
+            stopUploadItem.isHidden = true
             uploadSeparator.isHidden = false
         case let .paused(_, title, _):
             uploadStatusItem.title = "Upload paused — “\(title)”\(waiting)"
             uploadStatusItem.isHidden = false
             resumeUploadItem.isHidden = false
+            stopUploadItem.isHidden = false
             uploadSeparator.isHidden = false
         }
         contextMenu.popUp(positioning: nil,
@@ -395,6 +402,10 @@ import UniformTypeIdentifiers
 
     @objc private func resumeUpload() {
         uploads.resume()
+    }
+
+    @objc private func stopPausedUpload() {
+        uploads.stopPaused()
     }
 
     /// `onClose` fires once, when the window goes away. The 401 path uses it to

@@ -116,6 +116,11 @@ extension MenuBarController {
             """
             retryTitle = "Upload again"
             isAuthFailure = false
+        case .stopped:
+            headline = "Upload stopped"
+            message = "The upload was stopped before it finished. Nothing was created on Whiteboard yet unless it was finishing."
+            retryTitle = "Retry"
+            isAuthFailure = false
         }
 
         switch FailureAlert.present(headline: headline,
