@@ -215,3 +215,54 @@ private func freshUpload() -> PendingUpload {
     #expect(outcome == .failed(.fileMissing))
     #expect(session.calls.isEmpty)
 }
+
+@Test func repeated404sPauseInsteadOfLooping() async throws {
+    let directory = makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try writeAudio(in: directory)
+    let session = FakeSession()
+    session.script = [Replies.started(), Replies.notFound, Replies.started("up-2"), Replies.notFound,
+                      Replies.started("up-3"), Replies.notFound, Replies.started("up-4"), Replies.notFound]
+
+    let outcome = try await run(freshUpload(), in: directory, session: session, recorder: Recorder())
+
+    guard case .paused = outcome else {
+        Issue.record("expected .paused, got \(outcome)")
+        return
+    }
+    #expect(requestLines(session).filter { $0 == "POST /recordings/uploads" }.count == 4)
+}
+
+@Test func aCompleteThatKeepsSayingNotCompletePauses() async throws {
+    let directory = makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try writeAudio(in: directory)
+    let session = FakeSession()
+    let notComplete = FakeSession.Reply.status(409, #"{"message":"Upload is not complete","offset":10}"#)
+    session.script = [Replies.started(), Replies.offset(4), Replies.offset(8), Replies.offset(10),
+                      notComplete, notComplete, notComplete, notComplete]
+
+    let outcome = try await run(freshUpload(), in: directory, session: session, recorder: Recorder())
+
+    guard case .paused = outcome else {
+        Issue.record("expected .paused, got \(outcome)")
+        return
+    }
+}
+
+@Test func aResumeThatFindsNothingCreatedClearsCompleteSent() async throws {
+    let directory = makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try writeAudio(in: directory)
+    let session = FakeSession()
+    session.script = [Replies.status(offset: 8), Replies.notFound, Replies.started("up-2"),
+                      Replies.offset(4), Replies.offset(8), Replies.offset(10), Replies.created]
+    var upload = freshUpload()
+    upload.uploadId = "up-1"
+    upload.chunkSize = 4
+    upload.completeSent = true
+
+    let outcome = try await run(upload, in: directory, session: session, recorder: Recorder())
+
+    #expect(outcome == .completed(Replies.createdRecording))
+}

@@ -46,6 +46,12 @@ public struct ChunkedUploader: Sendable {
         var mustAskServer = upload.uploadId != nil
         var useDefaultSlug = false
         var failures = 0
+        // Connection failures are counted above. These paths made it to the
+        // server and got an answer, so they are not failures, but each one
+        // can repeat with no delay and no progress: a new session, a realign
+        // to the same offset, a `complete` that keeps saying "not yet". They
+        // are counted apart so that a run of them still ends in a pause.
+        var stalls = 0
 
         while true {
             try Task.checkCancellation()
@@ -69,21 +75,31 @@ public struct ChunkedUploader: Sendable {
                     // A recording already made means every byte is there, and
                     // `complete` will replay it.
                     offset = status.recordingId == nil ? status.offset : upload.size
+                    // Nothing was created, so a 404 that comes next means the
+                    // session is gone, not that the recording exists.
+                    if status.recordingId == nil, status.offset < upload.size, upload.completeSent {
+                        upload.completeSent = false
+                        await persist(upload)
+                    }
                     mustAskServer = false
                     Self.log.notice("resuming \(uploadId, privacy: .public) at \(offset, privacy: .public)")
                 }
                 await progress(offset, upload.size)
 
                 if offset < upload.size {
-                    let chunk = try Self.readChunk(of: fileURL, at: offset,
-                                                   length: upload.chunkSize ?? Self.fallbackChunkSize)
+                    // Never past the declared size, even if the file has grown on disk.
+                    let length = Int(min(Int64(upload.chunkSize ?? Self.fallbackChunkSize), upload.size - offset))
+                    let chunk = try Self.readChunk(of: fileURL, at: offset, length: length)
                     switch try await client.putChunk(uploadId: uploadId, offset: offset, data: chunk) {
                     case let .advanced(to: next):
                         offset = next
                         failures = 0
+                        stalls = 0
                     case let .offsetMismatch(serverOffset):
                         Self.log.notice("realigned \(uploadId, privacy: .public) \(offset, privacy: .public) -> \(serverOffset, privacy: .public)")
                         offset = serverOffset
+                        stalls += 1
+                        if stalls >= Self.maxConsecutiveFailures { return .paused(Self.stalledMessage) }
                     case .alreadyCompleted:
                         offset = upload.size
                     }
@@ -104,6 +120,8 @@ public struct ChunkedUploader: Sendable {
                     // no longer mean the recording exists.
                     upload.completeSent = false
                     await persist(upload)
+                    stalls += 1
+                    if stalls >= Self.maxConsecutiveFailures { return .paused(Self.stalledMessage) }
                 case .slugTaken:
                     // The app never sends a slug, so the server's default is
                     // the only other one to ask for — and only once.
@@ -121,6 +139,8 @@ public struct ChunkedUploader: Sendable {
                     upload.uploadId = nil
                     upload.chunkSize = nil
                     await persist(upload)
+                    stalls += 1
+                    if stalls >= Self.maxConsecutiveFailures { return .paused(Self.stalledMessage) }
                     continue
                 }
 
@@ -137,6 +157,8 @@ public struct ChunkedUploader: Sendable {
             }
         }
     }
+
+    static let stalledMessage = "The server keeps sending the upload back to an earlier point."
 
     static func describe(_ error: Error) -> String {
         (error as? APIError)?.message ?? error.localizedDescription
