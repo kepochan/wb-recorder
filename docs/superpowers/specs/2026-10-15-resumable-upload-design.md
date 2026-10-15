@@ -1,7 +1,7 @@
 # whiteboard-recorder — upload repris par morceaux
 
 Date : 2026-10-15
-Statut : implémenté
+Statut : implémenté — vérification réelle en attente
 Source : note Whiteboard `whiteboard-recorder-resumable-upload-prompt` (contrat
 d'API, ticket WB #1110) et réponses de l'agent backend aux questions Q1–Q8 de
 cette note.
