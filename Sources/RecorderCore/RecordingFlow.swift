@@ -1,6 +1,6 @@
 import Foundation
 
-public struct RecordingConfiguration: Equatable, Sendable {
+public struct RecordingConfiguration: Codable, Equatable, Sendable {
     public var workspaceID: String
     public var title: String
     public var recordedAt: Date
