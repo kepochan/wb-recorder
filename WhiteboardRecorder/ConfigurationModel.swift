@@ -19,6 +19,9 @@ final class ConfigurationModel: ObservableObject {
     /// whether the meeting actually left the machine.
     enum Phase: Equatable { case form, uploading, sent }
     @Published var phase: Phase = .form
+    /// Set once OK has handed the recording to the upload queue; the window
+    /// follows that upload's progress by it.
+    @Published var uploadID: UUID?
 
     let systemAudioAvailable: Bool
     let deviceWatchArmed: Bool

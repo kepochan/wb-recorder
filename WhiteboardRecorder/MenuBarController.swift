@@ -51,12 +51,24 @@ import UniformTypeIdentifiers
     /// duration and leave its action live.
     private let durationItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let durationSeparator = NSMenuItem.separator()
+    /// Same idea as the duration line: a status line with no action, plus
+    /// "Resume upload" while the queue is paused.
+    private let uploadStatusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let resumeUploadItem = NSMenuItem(title: "Resume upload", action: #selector(resumeUpload), keyEquivalent: "")
+    private let uploadSeparator = NSMenuItem.separator()
 
     private func buildMenu() {
         durationItem.isHidden = true
         durationSeparator.isHidden = true
         contextMenu.addItem(durationItem)
         contextMenu.addItem(durationSeparator)
+        uploadStatusItem.isHidden = true
+        resumeUploadItem.isHidden = true
+        uploadSeparator.isHidden = true
+        resumeUploadItem.target = self
+        contextMenu.addItem(uploadStatusItem)
+        contextMenu.addItem(resumeUploadItem)
+        contextMenu.addItem(uploadSeparator)
         let preferencesItem = NSMenuItem(title: Self.preferencesTitle, action: #selector(showPreferences), keyEquivalent: ",")
         preferencesItem.target = self
         contextMenu.addItem(preferencesItem)
@@ -110,6 +122,24 @@ import UniformTypeIdentifiers
         } else {
             durationItem.isHidden = true
             durationSeparator.isHidden = true
+        }
+        let waiting = uploads.waitingCount > 0 ? " (+\(uploads.waitingCount) waiting)" : ""
+        switch uploads.activity {
+        case .idle:
+            uploadStatusItem.isHidden = true
+            resumeUploadItem.isHidden = true
+            uploadSeparator.isHidden = true
+        case let .uploading(_, title, sent, total):
+            let percent = total > 0 ? Int(sent * 100 / total) : 0
+            uploadStatusItem.title = "Uploading “\(title)” — \(percent)%\(waiting)"
+            uploadStatusItem.isHidden = false
+            resumeUploadItem.isHidden = true
+            uploadSeparator.isHidden = false
+        case let .paused(_, title, _):
+            uploadStatusItem.title = "Upload paused — “\(title)”\(waiting)"
+            uploadStatusItem.isHidden = false
+            resumeUploadItem.isHidden = false
+            uploadSeparator.isHidden = false
         }
         contextMenu.popUp(positioning: nil,
                           at: NSPoint(x: button.bounds.midX, y: button.bounds.minY),
@@ -192,6 +222,7 @@ import UniformTypeIdentifiers
             startedAt: startedAt,
             preferences: preferences,
             client: client,
+            uploads: uploads,
             systemAudioAvailable: capture.isSystemAudioAvailable,
             deviceWatchArmed: capture.isDeviceWatchArmed,
             onConfirm: { [weak self] configuration in
@@ -246,7 +277,11 @@ import UniformTypeIdentifiers
         }
         // `$activity` fires before the value changes; the hop reads the new one.
         activityObserver = coordinator.$activity.sink { [weak self] _ in
-            DispatchQueue.main.async { self?.refreshIcon() }
+            DispatchQueue.main.async {
+                self?.refreshIcon()
+                // Waiting, uploading and paused are not the same height.
+                self?.configurationWindow?.fitToContent()
+            }
         }
         return coordinator
     }
@@ -356,6 +391,10 @@ import UniformTypeIdentifiers
 
     @objc private func showPreferences() {
         presentPreferences()
+    }
+
+    @objc private func resumeUpload() {
+        uploads.resume()
     }
 
     /// `onClose` fires once, when the window goes away. The 401 path uses it to

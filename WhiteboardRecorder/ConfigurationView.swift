@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ConfigurationView: View {
     @ObservedObject var model: ConfigurationModel
+    @ObservedObject var uploads: UploadCoordinator
     let onConfirm: () -> Void
     let onCancel: () -> Void
     let onClose: () -> Void
@@ -21,17 +22,56 @@ struct ConfigurationView: View {
         .task { await model.load() }
     }
 
+    private var uploadStatus: UploadCoordinator.ItemStatus {
+        model.uploadID.map(uploads.status(of:)) ?? .waiting
+    }
+
     private var sending: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Uploading…").font(.headline)
-            ProgressView().progressViewStyle(.linear)
+            switch uploadStatus {
+            case .waiting:
+                Text("Waiting…").font(.headline)
+                Text("Waiting for the previous upload to finish…")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case let .uploading(sent, total):
+                Text("Uploading…").font(.headline)
+                ProgressView(value: Double(sent), total: Double(max(total, 1)))
+                    .progressViewStyle(.linear)
+                Text("\(Self.megabytes(sent)) of \(Self.megabytes(total))")
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            case let .paused(message):
+                Label("Upload paused", systemImage: "pause.circle")
+                    .font(.headline)
+                    .foregroundStyle(.orange)
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .finished:
+                Text("Finishing…").font(.headline)
+            }
             Text("Sending “\(model.title)” to \(model.selectedWorkspaceName).")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Text("Do not quit the app before it finishes.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack {
+                // Closing is safe: the queue keeps going, and survives a quit.
+                Text("The upload continues in the background.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if case .paused = uploadStatus {
+                    Button("Resume upload") { uploads.resume() }
+                }
+                Button("Close", action: onClose)
+                    .keyboardShortcut(.cancelAction)
+            }
         }
+    }
+
+    private static func megabytes(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
     private var sent: some View {

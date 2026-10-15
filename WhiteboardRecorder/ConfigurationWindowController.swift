@@ -10,11 +10,14 @@ final class ConfigurationWindowController: NSWindowController {
 
     func track(uploadID: UUID) {
         self.uploadID = uploadID
+        model.uploadID = uploadID
+        fitToContent()
     }
 
     init(startedAt: Date,
          preferences: Preferences,
          client: WhiteboardClient,
+         uploads: UploadCoordinator,
          systemAudioAvailable: Bool,
          deviceWatchArmed: Bool,
          onConfirm: @escaping (RecordingConfiguration) -> Void,
@@ -41,6 +44,7 @@ final class ConfigurationWindowController: NSWindowController {
         // button, while a recording is running.
         let content = NSHostingController(rootView: ConfigurationView(
             model: model,
+            uploads: uploads,
             onConfirm: { [weak self] in
                 let configuration = model.makeConfiguration()
                 model.phase = .uploading
@@ -79,7 +83,7 @@ final class ConfigurationWindowController: NSWindowController {
     /// Each screen of this window is a different height; without resizing on
     /// the way through, the window keeps the form's size and clips whatever
     /// comes after it. SwiftUI lays out on the next turn, hence the hop.
-    private func fitToContent() {
+    func fitToContent() {
         DispatchQueue.main.async { [weak self] in
             guard let self, let window = self.window, let content = self.content else { return }
             window.setContentSize(content.view.fittingSize)
