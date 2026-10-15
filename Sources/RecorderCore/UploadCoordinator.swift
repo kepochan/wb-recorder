@@ -26,6 +26,8 @@ public final class UploadCoordinator: ObservableObject {
     public enum Failure: Equatable, Sendable {
         case rejected(APIError)
         case maybeAlreadyUploaded
+        /// The user gave up on a paused upload.
+        case stopped
     }
 
     @Published public private(set) var activity: Activity = .idle
@@ -100,6 +102,17 @@ public final class UploadCoordinator: ObservableObject {
     public func resume() {
         guard case .paused = activity, task == nil else { return }
         startHead()
+    }
+
+    /// "Stop upload". The way out of a pause that does not clear: the upload
+    /// leaves the queue, its file stays for the app to keep or retry, and the
+    /// next meeting goes. Does nothing unless paused.
+    public func stopPaused() {
+        guard case .paused = activity, task == nil, let upload = queue.first else { return }
+        remove(upload.id)
+        activity = .idle
+        onFailed?(upload, .stopped)
+        pump()
     }
 
     /// Fed every network change. Only a return after an outage, while paused,
@@ -197,7 +210,7 @@ public final class UploadCoordinator: ObservableObject {
         case let .paused(detail):
             activity = .paused(id: id, title: title, message: detail)
             notify?("Upload paused",
-                    "“\(title)” will resume when the network comes back, or from the menu bar icon.")
+                    "“\(title)” is paused. It resumes when the network comes back, or from the menu bar icon.")
             return
         case let .failed(error):
             remove(id)
@@ -215,10 +228,10 @@ public final class UploadCoordinator: ObservableObject {
         save()
     }
 
-    /// A save that fails leaves the previous queue on disk. The next launch
-    /// then asks the server where each upload stands, which is safe for every
-    /// entry except one whose `complete` went unrecorded — the 404 path still
-    /// stops short of a second upload for those.
+    /// A save that fails leaves the previous queue on disk, and the next launch
+    /// asks the server where each upload stands, so little is lost. The one gap
+    /// is a `completeSent` that failed to save: the relaunch then sees it as
+    /// false, and a session the server has purged since would be uploaded again.
     private func save() {
         try? store.save(queue)
     }

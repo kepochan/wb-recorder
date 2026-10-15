@@ -266,3 +266,57 @@ private func freshUpload() -> PendingUpload {
 
     #expect(outcome == .completed(Replies.createdRecording))
 }
+
+@Test func aTimedOutPieceIsRetriedSmaller() async throws {
+    let directory = makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try writeAudio(in: directory)
+    let session = FakeSession()
+    session.script = [Replies.started(chunkSize: 8), .failure(.timedOut), Replies.status(offset: 0),
+                      Replies.offset(4), Replies.offset(10), Replies.created]
+    var uploader = ChunkedUploader(client: uploadTestClient(session), sleep: { _ in })
+    // The real floor is larger than this ten-byte file.
+    uploader.minimumChunkSize = 2
+
+    let outcome = try await uploader.run(freshUpload(), directory: directory,
+                                         progress: { _, _ in }, persist: { _ in })
+
+    #expect(outcome == .completed(Replies.createdRecording))
+    let puts = session.calls.filter { $0.request.httpMethod == "PUT" }
+    // Halved after the timeout, doubled back after the first success, and
+    // limited by what is left of the file.
+    #expect(puts.map(bodyText) == ["ABCDEFGH", "ABCD", "EFGHIJ"])
+}
+
+@Test func anAnswerThatDoesNotAdvanceIsAStall() async throws {
+    let directory = makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try writeAudio(in: directory)
+    let session = FakeSession()
+    session.script = [Replies.started(), Replies.offset(0), Replies.offset(0),
+                      Replies.offset(0), Replies.offset(0)]
+
+    let outcome = try await run(freshUpload(), in: directory, session: session, recorder: Recorder())
+
+    guard case .paused = outcome else {
+        Issue.record("expected .paused, got \(outcome)")
+        return
+    }
+}
+
+@Test func aLostCompleteAnswerIsReplayedNotResent() async throws {
+    let directory = makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try writeAudio(in: directory)
+    let session = FakeSession()
+    session.script = [Replies.started(), Replies.offset(4), Replies.offset(8), Replies.offset(10),
+                      Replies.networkDown,
+                      Replies.status(offset: 10, recordingId: "rec-1"), Replies.created]
+
+    let outcome = try await run(freshUpload(), in: directory, session: session, recorder: Recorder())
+
+    #expect(outcome == .completed(Replies.createdRecording))
+    let lines = requestLines(session)
+    #expect(lines.filter { $0 == "POST /recordings/uploads" }.count == 1)
+    #expect(lines.suffix(2) == ["GET /recordings/uploads/up-1", "POST /recordings/uploads/up-1/complete"])
+}

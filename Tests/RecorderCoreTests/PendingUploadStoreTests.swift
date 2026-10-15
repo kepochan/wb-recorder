@@ -46,3 +46,17 @@ private func makeStore() -> (PendingUploadStore, URL) {
     #expect(PendingUploadStore.defaultFileURL.deletingLastPathComponent()
             == RecordingStorage.directory.deletingLastPathComponent())
 }
+
+@Test func oneBadEntryDoesNotDropTheOthers() throws {
+    let (store, directory) = makeStore()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let first = PendingUpload(fileName: "a.m4a", size: 10, configuration: uploadTestConfiguration())
+    let second = PendingUpload(fileName: "b.m4a", size: 20, configuration: uploadTestConfiguration())
+    try store.save([first, second])
+
+    var entries = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: store.fileURL)) as? [Any])
+    entries.insert(["id": "broken"], at: 1)
+    try JSONSerialization.data(withJSONObject: entries).write(to: store.fileURL)
+
+    #expect(store.load() == [first, second])
+}

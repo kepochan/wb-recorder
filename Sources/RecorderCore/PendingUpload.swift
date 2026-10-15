@@ -55,7 +55,17 @@ public struct PendingUploadStore: Sendable {
     /// sweep moves them to the save folder.
     public func load() -> [PendingUpload] {
         guard let data = try? Data(contentsOf: fileURL) else { return [] }
-        return (try? Self.decoder.decode([PendingUpload].self, from: data)) ?? []
+        // Entry by entry: one that no longer decodes must not take the
+        // others, and their recordings, down with it.
+        let entries = (try? Self.decoder.decode([FailableEntry].self, from: data)) ?? []
+        return entries.compactMap(\.upload)
+    }
+
+    private struct FailableEntry: Decodable {
+        let upload: PendingUpload?
+        init(from decoder: Decoder) throws {
+            upload = try? PendingUpload(from: decoder)
+        }
     }
 
     public func save(_ uploads: [PendingUpload]) throws {

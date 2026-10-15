@@ -68,9 +68,8 @@ extension WhiteboardClient {
             return .slugTaken
         }
         try check(response, data)
-        // Same rule as the single upload had: past `check` the recording
-        // exists, and a body this app cannot read must not turn that into a
-        // failure that invites a second upload.
+        // Past `check` the recording exists, and a body this app cannot read
+        // must not turn that into a failure that invites a second upload.
         return .completed(try? JSONDecoder().decode(UploadedRecording.self, from: data))
     }
 }

@@ -197,3 +197,28 @@ private func pauseFirstUpload(_ session: FakeSession, _ coordinator: UploadCoord
     _ = try await pauseFirstUpload(session, coordinator, in: directory)
     #expect(coordinator.referencedFileNames == ["first.m4a"])
 }
+
+@MainActor @Test func stoppingAPausedUploadLetsTheNextOneGo() async throws {
+    let directory = makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let session = FakeSession()
+    let coordinator = makeCoordinator(session, in: directory)
+    var failures: [(String, UploadCoordinator.Failure)] = []
+    coordinator.onFailed = { failures.append(($0.fileName, $1)) }
+    var completed: [String] = []
+    coordinator.onCompleted = { completed.append($0.fileName) }
+    _ = try await pauseFirstUpload(session, coordinator, in: directory)
+    try coordinator.enqueue(fileURL: try writeAudio(named: "second.m4a", in: directory),
+                            configuration: uploadTestConfiguration())
+    session.script = [Replies.started("up-2", chunkSize: 16), Replies.offset(10), Replies.created]
+
+    coordinator.stopPaused()
+    await settle(coordinator)
+
+    #expect(failures.map(\.0) == ["first.m4a"])
+    #expect(failures.map(\.1) == [.stopped])
+    #expect(FileManager.default.fileExists(atPath: directory.appendingPathComponent("first.m4a").path))
+    #expect(completed == ["second.m4a"])
+    #expect(coordinator.queue.isEmpty)
+    #expect(requestLines(session).contains("PUT /recordings/uploads/up-2?offset=0"))
+}

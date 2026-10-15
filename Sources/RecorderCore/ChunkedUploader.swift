@@ -22,6 +22,9 @@ public struct ChunkedUploader: Sendable {
 
     private static let log = Logger(subsystem: "com.kepochan.whiteboard-recorder", category: "upload")
 
+    /// The smallest piece a slow link is asked to carry.
+    var minimumChunkSize = 256 * 1024
+
     let client: WhiteboardClient
     let sleep: @Sendable (Duration) async throws -> Void
 
@@ -52,6 +55,13 @@ public struct ChunkedUploader: Sendable {
         // to the same offset, a `complete` that keeps saying "not yet". They
         // are counted apart so that a run of them still ends in a pause.
         var stalls = 0
+        // On a slow link a server-sized piece can outlast the reverse proxy's
+        // timeout, and every attempt would then fail the same way. A piece
+        // that times out is retried smaller, and the size grows back as pieces
+        // go through. It lives only in this run: the next one starts from the
+        // server's size again.
+        var pieceSize = upload.chunkSize ?? Self.fallbackChunkSize
+        var sendingPiece = false
 
         while true {
             try Task.checkCancellation()
@@ -64,6 +74,7 @@ public struct ChunkedUploader: Sendable {
                     upload.chunkSize = session.chunkSize
                     upload.completeSent = false
                     offset = session.offset
+                    pieceSize = session.chunkSize
                     mustAskServer = false
                     failures = 0
                     await persist(upload)
@@ -88,13 +99,26 @@ public struct ChunkedUploader: Sendable {
 
                 if offset < upload.size {
                     // Never past the declared size, even if the file has grown on disk.
-                    let length = Int(min(Int64(upload.chunkSize ?? Self.fallbackChunkSize), upload.size - offset))
+                    let length = Int(min(Int64(pieceSize), upload.size - offset))
                     let chunk = try Self.readChunk(of: fileURL, at: offset, length: length)
-                    switch try await client.putChunk(uploadId: uploadId, offset: offset, data: chunk) {
+                    sendingPiece = true
+                    let result = try await client.putChunk(uploadId: uploadId, offset: offset, data: chunk)
+                    sendingPiece = false
+                    switch result {
                     case let .advanced(to: next):
+                        // A 200 that does not move the offset forward is no
+                        // progress: counted like any other stall, so that a
+                        // server stuck on it ends in a pause.
+                        let moved = next > offset
                         offset = next
-                        failures = 0
-                        stalls = 0
+                        if moved {
+                            failures = 0
+                            stalls = 0
+                            pieceSize = min(pieceSize * 2, upload.chunkSize ?? Self.fallbackChunkSize)
+                        } else {
+                            stalls += 1
+                            if stalls >= Self.maxConsecutiveFailures { return .paused(Self.stalledMessage) }
+                        }
                     case let .offsetMismatch(serverOffset):
                         Self.log.notice("realigned \(uploadId, privacy: .public) \(offset, privacy: .public) -> \(serverOffset, privacy: .public)")
                         offset = serverOffset
@@ -146,6 +170,14 @@ public struct ChunkedUploader: Sendable {
 
                 guard APIError.isTransient(error) else {
                     return .failed(error as? APIError ?? .invalidResponse)
+                }
+                if sendingPiece {
+                    // Never below the floor, and never above the server's size
+                    // (a floor larger than a small server piece must not grow it).
+                    let serverSize = upload.chunkSize ?? Self.fallbackChunkSize
+                    pieceSize = min(max(pieceSize / 2, minimumChunkSize), serverSize)
+                    Self.log.notice("piece size now \(pieceSize, privacy: .public)")
+                    sendingPiece = false
                 }
                 failures += 1
                 Self.log.notice("failure \(failures, privacy: .public): \(Self.describe(error), privacy: .public)")
