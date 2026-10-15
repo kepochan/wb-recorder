@@ -3,6 +3,9 @@ import Foundation
 public final class Preferences {
     public static let languages = ["auto", "fr", "en"]
     public static let sharingModes = ["private", "protected", "limited", "editable", "public", "open-bar"]
+    /// The two choices made nearly every time, offered as tabs; the others stay
+    /// one click away behind the chevron.
+    public static let quickSharingModes = ["private", "editable"]
     public static let defaultAPIBaseURL = URL(string: "https://whiteboard-api.kepochan.com")!
 
     /// French label for a language code. The raw code is what the API receives;
@@ -32,6 +35,16 @@ public final class Preferences {
         }
     }
 
+    /// Short tab label for a quick sharing mode; anything else keeps its full
+    /// label.
+    public static func sharingModeShortName(_ mode: String) -> String {
+        switch mode {
+        case "private": return "Only me"
+        case "editable": return "Share with team"
+        default: return sharingModeName(mode)
+        }
+    }
+
     private let defaults: UserDefaults
 
     public init(defaults: UserDefaults = .standard) {
@@ -54,7 +67,7 @@ public final class Preferences {
     }
 
     public var lastLanguage: String {
-        get { defaults.string(forKey: "lastLanguage") ?? "auto" }
+        get { defaults.string(forKey: "lastLanguage") ?? "fr" }
         set { defaults.set(newValue, forKey: "lastLanguage") }
     }
 

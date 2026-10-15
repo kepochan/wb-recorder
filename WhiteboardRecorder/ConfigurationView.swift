@@ -125,9 +125,34 @@ struct ConfigurationView: View {
                     }
                 }
 
-                Picker("Visibility", selection: $model.sharingMode) {
-                    ForEach(Preferences.sharingModes, id: \.self) {
-                        Text(Preferences.sharingModeName($0)).tag($0)
+                LabeledContent("Visibility") {
+                    HStack(spacing: 6) {
+                        // A mode picked from the chevron gets its own tab while
+                        // it is selected, so the tabs always show the choice.
+                        Picker("Visibility", selection: $model.sharingMode) {
+                            ForEach(visibilityTabs, id: \.self) {
+                                Text(Preferences.sharingModeShortName($0)).tag($0)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
+                        .fixedSize()
+
+                        Menu {
+                            Picker("Visibility", selection: $model.sharingMode) {
+                                ForEach(Preferences.sharingModes, id: \.self) {
+                                    Text(Preferences.sharingModeName($0)).tag($0)
+                                }
+                            }
+                            .pickerStyle(.inline)
+                            .labelsHidden()
+                        } label: {
+                            Image(systemName: "chevron.down")
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .fixedSize()
+                        .help("All visibility options")
                     }
                 }
             }
@@ -145,6 +170,12 @@ struct ConfigurationView: View {
                     .disabled(!model.canConfirm)
             }
         }
+    }
+
+    private var visibilityTabs: [String] {
+        Preferences.quickSharingModes.contains(model.sharingMode)
+            ? Preferences.quickSharingModes
+            : Preferences.quickSharingModes + [model.sharingMode]
     }
 
     /// The server's tag palette. Anything unknown falls back to the neutral
@@ -171,13 +202,26 @@ struct ConfigurationView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(model.selectedTags, id: \.label) { tag in
-                            Button {
-                                model.remove(tag)
-                            } label: {
-                                Text("\(tag.label) ✕")
+                            // The mandatory tag gets no ✕: the server adds it
+                            // whatever the form says, so offering to take it
+                            // off would be a lie.
+                            if model.isMandatory(tag) {
+                                Text(tag.label)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .foregroundStyle(Self.color(named: tag.color))
+                                    .background(Self.color(named: tag.color).opacity(0.15),
+                                                in: RoundedRectangle(cornerRadius: 5))
+                                    .help("Always added — it cannot be removed.")
+                            } else {
+                                Button {
+                                    model.remove(tag)
+                                } label: {
+                                    Text("\(tag.label) ✕")
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(Self.color(named: tag.color))
                             }
-                            .buttonStyle(.bordered)
-                            .tint(Self.color(named: tag.color))
                         }
                     }
                 }
@@ -201,7 +245,7 @@ struct ConfigurationView: View {
                 }
             }
 
-            Text("The “meeting” tag is added automatically.")
+            Text("The “meeting” tag is always added and cannot be removed.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }

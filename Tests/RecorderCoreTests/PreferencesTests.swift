@@ -10,12 +10,13 @@ private func makePreferences() -> Preferences {
 @Test func defaultsMatchTheSpec() {
     let preferences = makePreferences()
     #expect(preferences.apiBaseURL.absoluteString == "https://whiteboard-api.kepochan.com")
-    #expect(preferences.lastLanguage == "auto")
+    #expect(preferences.lastLanguage == "fr")
     #expect(preferences.lastSharingMode == "private")
     #expect(preferences.esp32Host == nil)
     #expect(preferences.saveFolder.path.hasSuffix("/Downloads"))
     #expect(Preferences.languages == ["auto", "fr", "en"])
     #expect(Preferences.sharingModes == ["private", "protected", "limited", "editable", "public", "open-bar"])
+    #expect(Preferences.quickSharingModes.allSatisfy(Preferences.sharingModes.contains))
 }
 
 @Test func valuesSurviveAWriteAndRead() {
@@ -60,4 +61,7 @@ private func makePreferences() -> Preferences {
     // An unknown value coming back from a future API still shows as itself
     // rather than as an empty picker row.
     #expect(Preferences.sharingModeName("teams-only") == "teams-only")
+    #expect(Preferences.sharingModeShortName("private") == "Only me")
+    #expect(Preferences.sharingModeShortName("editable") == "Share with team")
+    #expect(Preferences.sharingModeShortName("public") == Preferences.sharingModeName("public"))
 }

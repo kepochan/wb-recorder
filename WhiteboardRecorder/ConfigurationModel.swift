@@ -51,12 +51,21 @@ final class ConfigurationModel: ObservableObject {
             && recordedAt <= Date()
     }
 
+    /// The tag the server puts on every recording whatever the user does. It is
+    /// shown as selected from the start so the form tells the truth, and it
+    /// cannot be taken off.
+    static let mandatoryTagLabel = "meeting"
+
+    func isMandatory(_ tag: Tag) -> Bool {
+        tag.label.lowercased() == Self.mandatoryTagLabel
+    }
+
     /// Existing tags only — the app never invents one.
     var tagSuggestions: [Tag] {
         let query = tagQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return availableTags
             .filter { tag in
-                !selectedTags.contains(tag)
+                !selectedTags.contains { $0.label == tag.label }
                     && (query.isEmpty || tag.label.lowercased().contains(query))
             }
             .prefix(6)
@@ -80,7 +89,7 @@ final class ConfigurationModel: ObservableObject {
 
     func loadTags() async {
         guard !workspaceID.isEmpty else { return }
-        selectedTags = []
+        selectedTags = [Self.fallbackMandatoryTag]
 
         tagLoadGeneration += 1
         let generation = tagLoadGeneration
@@ -91,6 +100,12 @@ final class ConfigurationModel: ObservableObject {
                 .sorted { ($0.count ?? 0) > ($1.count ?? 0) }
             guard generation == tagLoadGeneration, workspaceID == requestedWorkspaceID else { return }
             availableTags = tags
+            // The workspace's own "meeting" tag carries the colour the user
+            // sees everywhere else; the placeholder only stands in until it
+            // arrives, or if the list never does.
+            if let mandatory = tags.first(where: { isMandatory($0) }) {
+                selectedTags = [mandatory]
+            }
         } catch {
             // A key scoped to recordings only may be refused here; the field
             // simply stays empty rather than blocking the recording.
@@ -106,8 +121,12 @@ final class ConfigurationModel: ObservableObject {
     }
 
     func remove(_ tag: Tag) {
+        guard !isMandatory(tag) else { return }
         selectedTags.removeAll { $0 == tag }
     }
+
+    /// Stands in before — or instead of — the workspace's own copy of the tag.
+    private static let fallbackMandatoryTag = Tag(label: mandatoryTagLabel, color: "gray")
 
     func makeConfiguration() -> RecordingConfiguration {
         preferences.lastWorkspaceID = workspaceID
