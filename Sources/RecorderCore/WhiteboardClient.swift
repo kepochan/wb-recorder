@@ -26,9 +26,11 @@ public struct WhiteboardClient {
         return try decode(data)
     }
 
-    func makeRequest(_ path: String, method: String = "GET") throws -> URLRequest {
+    func makeRequest(_ path: String, method: String = "GET", query: [URLQueryItem] = []) throws -> URLRequest {
         guard let key = apiKey(), !key.isEmpty else { throw APIError.noAPIKey }
-        var request = URLRequest(url: baseURL.appendingPathComponent(path))
+        var url = baseURL.appendingPathComponent(path)
+        if !query.isEmpty { url.append(queryItems: query) }
+        var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(key, forHTTPHeaderField: "X-API-Key")
         return request

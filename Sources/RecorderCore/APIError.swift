@@ -12,6 +12,7 @@ public enum APIError: Error, Equatable {
     case tooLarge
     case server(status: Int, String)
     case invalidResponse
+    case fileMissing
 
     public static func from(status: Int, body: Data) -> APIError {
         let messages = ErrorBody.decode(body)
@@ -33,6 +34,17 @@ public enum APIError: Error, Equatable {
     public var isAuthenticationFailure: Bool {
         switch self {
         case .noAPIKey, .unauthorized: return true
+        default: return false
+        }
+    }
+
+    /// Worth another attempt: the network, a timeout or the server itself
+    /// failed, not the request. Anything else would fail the same way again.
+    public static func isTransient(_ error: Error) -> Bool {
+        if error is URLError { return true }
+        guard let apiError = error as? APIError else { return false }
+        switch apiError {
+        case .server, .invalidResponse: return true
         default: return false
         }
     }
@@ -67,6 +79,8 @@ public enum APIError: Error, Equatable {
             return detail.isEmpty ? "Server error (\(status))." : "Server error (\(status)): \(detail)"
         case .invalidResponse:
             return "Unexpected response from the server."
+        case .fileMissing:
+            return "The audio file is missing."
         }
     }
 }

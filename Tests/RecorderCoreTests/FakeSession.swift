@@ -7,24 +7,44 @@ final class FakeSession: HTTPSession, @unchecked Sendable {
         let uploadedFile: URL?
     }
 
-    private(set) var calls: [Call] = []
+    /// One answer to one request, consumed in order. When the script runs out
+    /// the session falls back to `nextStatus` / `nextBody`.
+    enum Reply {
+        case status(Int, String)
+        case failure(URLError.Code)
+    }
+
+    private let lock = NSLock()
+    private var _calls: [Call] = []
+    var calls: [Call] { lock.withLock { _calls } }
     var nextStatus = 200
     var nextBody = Data()
+    var script: [Reply] = []
 
     func data(for request: URLRequest) async throws -> (Data, URLResponse) {
-        calls.append(Call(request: request, uploadedFile: nil))
-        return (nextBody, response(for: request))
+        let reply: Reply? = lock.withLock {
+            _calls.append(Call(request: request, uploadedFile: nil))
+            return script.isEmpty ? nil : script.removeFirst()
+        }
+        switch reply {
+        case let .status(code, body):
+            return (Data(body.utf8), response(for: request, status: code))
+        case let .failure(code):
+            throw URLError(code)
+        case nil:
+            return (nextBody, response(for: request, status: nextStatus))
+        }
     }
 
     func upload(for request: URLRequest, fromFile fileURL: URL) async throws -> (Data, URLResponse) {
         // The envelope is deleted as soon as upload() returns, so copy it now.
         let copy = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try? FileManager.default.copyItem(at: fileURL, to: copy)
-        calls.append(Call(request: request, uploadedFile: copy))
-        return (nextBody, response(for: request))
+        lock.withLock { _calls.append(Call(request: request, uploadedFile: copy)) }
+        return (nextBody, response(for: request, status: nextStatus))
     }
 
-    private func response(for request: URLRequest) -> HTTPURLResponse {
-        HTTPURLResponse(url: request.url!, statusCode: nextStatus, httpVersion: nil, headerFields: nil)!
+    private func response(for request: URLRequest, status: Int) -> HTTPURLResponse {
+        HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
     }
 }
