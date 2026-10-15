@@ -5,6 +5,13 @@ final class ConfigurationWindowController: NSWindowController {
     private let model: ConfigurationModel
     private var content: NSHostingController<ConfigurationView>?
 
+    /// The upload this window shows, once OK has handed the recording over.
+    private(set) var uploadID: UUID?
+
+    func track(uploadID: UUID) {
+        self.uploadID = uploadID
+    }
+
     init(startedAt: Date,
          preferences: Preferences,
          client: WhiteboardClient,

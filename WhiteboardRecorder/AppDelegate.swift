@@ -39,14 +39,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let controller = MenuBarController()
         menuBarController = controller
         // Deferred so the status item is on screen before a modal alert can
-        // take over, and so launch itself is never blocked by one.
-        DispatchQueue.main.async { controller.sweepStrandedRecordings() }
+        // take over, and so launch itself is never blocked by one. The sweep
+        // runs first and leaves queued files alone; the queue then resumes.
+        DispatchQueue.main.async {
+            controller.sweepStrandedRecordings()
+            controller.resumePendingUploads()
+        }
     }
 
-    /// `terminate` unwinds nothing on its own: a quit while recording or
-    /// uploading would leave an unplayable file in a folder nothing lists and
-    /// the user none the wiser. The controller closes the capture, rescues the
-    /// file and says where it went; the exit waits for it.
+    /// `terminate` unwinds nothing on its own: a quit while recording would
+    /// leave an unplayable file in a folder nothing lists. The controller closes
+    /// the capture, rescues the file and says where it went; uploads simply stop
+    /// and resume at the next launch.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         menuBarController?.prepareForTermination() ?? .terminateNow
     }

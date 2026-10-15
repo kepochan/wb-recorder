@@ -18,6 +18,10 @@ extension MenuBarController {
     /// is in the user's save folder, the light is out and the user has been
     /// told where the meeting went.
     func prepareForTermination() -> NSApplication.TerminateReply {
+        // Anything queued is already on disk and resumes at the next launch;
+        // stopping only spares the server a request cut in half.
+        uploads.stop()
+
         if case .idle = flow.state { return .terminateNow }
 
         switch flow.state {
@@ -29,10 +33,9 @@ extension MenuBarController {
             } catch {
                 currentFileURL = partialFileURL(for: error)
             }
-        case .idle, .uploading, .failed:
-            // Capture already stopped; `currentFileURL` is the file the upload
-            // was sending, or the one the failure alert is holding. A quit here
-            // kills that Task, which is exactly why the file must be rescued.
+        case .idle, .failed:
+            // Capture already stopped; `currentFileURL` is the partial file the
+            // capture-failure alert is holding.
             break
         }
 
@@ -89,7 +92,9 @@ extension MenuBarController {
     /// lists that folder, so without this those files stay there invisibly
     /// forever. They are moved into the save folder and named once, out loud.
     func sweepStrandedRecordings() {
-        let stranded = RecordingStorage.strandedFiles()
+        // Files still in the upload queue are not stranded: they resume next.
+        let queued = uploads.referencedFileNames
+        let stranded = RecordingStorage.strandedFiles().filter { !queued.contains($0.lastPathComponent) }
         guard !stranded.isEmpty else { return }
 
         let formatter = DateFormatter()

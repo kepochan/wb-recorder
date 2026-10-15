@@ -1,8 +1,10 @@
 import AppKit
 import AVFoundation
+import Combine
+import Network
 import UniformTypeIdentifiers
 
-final class MenuBarController: NSObject {
+@MainActor final class MenuBarController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private let contextMenu = NSMenu()
 
@@ -16,16 +18,14 @@ final class MenuBarController: NSObject {
     var currentFileURL: URL?
     var startedAt: Date?
 
-    /// Set by `.stopCapture` when `capture.stop()` throws. Remembered so that
-    /// `startUpload` can fail the flow instead of silently uploading nothing,
-    /// and cleared whenever a new recording starts so it cannot leak into it.
-    private var captureFailureMessage: String?
-
-    /// Set by `presentFailure` (defined in FailureAlert.swift) while `flow.state`
-    /// is still `.failed`, so the save-folder safety net can still name the file
-    /// after the meeting once the flow has moved on to `.idle`. Cleared whenever
-    /// a new recording starts so it cannot leak into it.
-    var lastFailedTitle: String?
+    /// Every recording confirmed in the configuration window is handed to this
+    /// queue and sent in the background, one at a time. The queue lives on
+    /// disk, so a quit or a crash only pauses it, and the icon is free for the
+    /// next meeting as soon as the window says OK.
+    private(set) lazy var uploads: UploadCoordinator = makeUploads()
+    private let notifications = UploadNotifications()
+    private let pathMonitor = NWPathMonitor()
+    private var activityObserver: AnyCancellable?
 
     private var client: WhiteboardClient {
         WhiteboardClient(baseURL: preferences.apiBaseURL, apiKey: { [keychain] in keychain.read() })
@@ -33,7 +33,7 @@ final class MenuBarController: NSObject {
 
     override init() {
         super.init()
-        setIcon(.idle)
+        refreshIcon()
         statusItem.button?.target = self
         statusItem.button?.action = #selector(handleClick)
         statusItem.button?.sendAction(on: [.leftMouseDown, .rightMouseDown])
@@ -122,9 +122,6 @@ final class MenuBarController: NSObject {
         for effect in effects {
             switch effect {
             case .startCapture:
-                // A fresh recording must never inherit the previous one's failure.
-                captureFailureMessage = nil
-                lastFailedTitle = nil
                 do {
                     startedAt = try capture.start()
                 } catch {
@@ -146,33 +143,30 @@ final class MenuBarController: NSObject {
             case .stopCapture:
                 do {
                     currentFileURL = try capture.stop()
-                    captureFailureMessage = nil
                 } catch {
                     // stop() throws when the recording is not trustworthy. The
                     // error may still carry a partial file, which is kept as the
                     // current file so the user can rescue it via "Enregistrer…";
-                    // the failure itself is remembered so startUpload refuses to
-                    // ship it and reaches the failure alert instead.
+                    // the failure goes to the capture-failure alert.
                     currentFileURL = partialFileURL(for: error)
                     let message = "The recording could not be finalised: \(message(for: error))"
-                    captureFailureMessage = message
                     // There is nothing worth configuring, so the remaining
                     // effects — including opening the configuration window —
                     // must not run. The alert lets the partial file be saved.
                     apply(flow.handle(.captureFailed(message)))
-                    presentFailure(message, canRetry: false)
+                    presentFailure(message)
                     return
                 }
 
-            case .discardFile, .deleteFile:
+            case .discardFile:
                 if let url = currentFileURL { try? FileManager.default.removeItem(at: url) }
                 currentFileURL = nil
 
             case .moveFileToSaveFolder:
                 moveCurrentFileToSaveFolder()
 
-            case let .upload(configuration):
-                startUpload(configuration)
+            case let .enqueueUpload(configuration):
+                enqueueUpload(configuration)
 
             case let .showConfigurationWindow(startedAt):
                 showConfigurationWindow(startedAt: startedAt)
@@ -180,8 +174,10 @@ final class MenuBarController: NSObject {
             case .focusConfigurationWindow:
                 configurationWindow?.focus()
 
-            case let .setIcon(state):
-                setIcon(state)
+            case .setIcon:
+                // What the flow alone would show; the queue may still be
+                // sending an earlier meeting, which `refreshIcon` accounts for.
+                refreshIcon()
 
             case let .setESP32Recording(isRecording):
                 let display = ESP32Display(host: preferences.esp32Host)
@@ -214,66 +210,82 @@ final class MenuBarController: NSObject {
         controller.focus()
     }
 
-    private func startUpload(_ configuration: RecordingConfiguration) {
-        if let captureFailureMessage {
-            // The capture itself failed before there was ever anything to
-            // upload; take the flow straight to its normal failure path so the
-            // Task 14 alert appears instead of silently doing nothing. Retrying
-            // a capture that never produced a valid file cannot succeed, so
-            // Retry is not offered here — which also means presentFailure
-            // can never be re-entered synchronously from its own `.retry` case
-            // for this kind of failure.
-            apply(flow.handle(.uploadFailed(captureFailureMessage)))
-            presentFailure(captureFailureMessage, canRetry: false)
-            return
-        }
-
+    private func enqueueUpload(_ configuration: RecordingConfiguration) {
         guard let fileURL = currentFileURL else {
-            // No capture failure was recorded, yet there is no file either —
-            // nothing retrying would change, so this is not offered either.
-            let message = "The audio file is missing."
-            apply(flow.handle(.uploadFailed(message)))
-            presentFailure(message, canRetry: false)
+            configurationWindow?.close()
+            showAlert(title: "Upload failed", message: APIError.fileMissing.message)
             return
         }
-
-        let recording = RecordingUpload(
-            audioURL: fileURL,
-            workspaceID: configuration.workspaceID,
-            title: configuration.title,
-            recordedAt: configuration.recordedAt,
-            language: configuration.language,
-            sharingMode: configuration.sharingMode,
-            tags: configuration.tags
-        )
-
-        let client = self.client
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                try await client.upload(recording)
-                self.apply(self.flow.handle(.uploadSucceeded))
-                // The window is still up showing "Envoi en cours…". Tell it the
-                // upload landed rather than letting it vanish silently.
-                self.configurationWindow?.showUploadSucceeded()
-            } catch let error as APIError {
-                // The alert would open behind the window otherwise.
-                self.configurationWindow?.close()
-                self.apply(self.flow.handle(.uploadFailed(error.message)))
-                // A dead key cannot be retried into working, so the alert offers
-                // the preferences instead of "Retry".
-                self.presentFailure(error.message, isAuthFailure: error.isAuthenticationFailure)
-            } catch {
-                self.configurationWindow?.close()
-                self.apply(self.flow.handle(.uploadFailed(error.localizedDescription)))
-                self.presentFailure(error.localizedDescription)
-            }
+        do {
+            let id = try uploads.enqueue(fileURL: fileURL, configuration: configuration)
+            // The queue owns the file now; the next recording gets its own.
+            currentFileURL = nil
+            notifications.requestAuthorizationIfNeeded()
+            configurationWindow?.track(uploadID: id)
+        } catch {
+            configurationWindow?.close()
+            showAlert(title: "Upload failed", message: (error as? APIError)?.message ?? error.localizedDescription)
         }
+    }
+
+    private func makeUploads() -> UploadCoordinator {
+        let coordinator = UploadCoordinator(
+            store: PendingUploadStore(),
+            directory: RecordingStorage.directory,
+            makeUploader: { [unowned self] in ChunkedUploader(client: self.client) })
+        coordinator.notify = { [notifications] title, body in
+            notifications.post(title: title, body: body)
+        }
+        coordinator.onCompleted = { [weak self] upload in
+            guard let self, self.configurationWindow?.uploadID == upload.id else { return }
+            self.configurationWindow?.showUploadSucceeded()
+        }
+        coordinator.onFailed = { [weak self] upload, failure in
+            // Out of the coordinator's call before a modal alert takes over.
+            DispatchQueue.main.async { self?.uploadFailed(upload, failure) }
+        }
+        // `$activity` fires before the value changes; the hop reads the new one.
+        activityObserver = coordinator.$activity.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.refreshIcon() }
+        }
+        return coordinator
+    }
+
+    private func uploadFailed(_ upload: PendingUpload, _ failure: UploadCoordinator.Failure) {
+        if configurationWindow?.uploadID == upload.id { configurationWindow?.close() }
+        presentUploadFailure(upload, failure)
+    }
+
+    /// Called once at launch, after the sweep: picks up the uploads an earlier
+    /// run left unfinished, and starts listening for the network to come back.
+    func resumePendingUploads() {
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            let available = path.status == .satisfied
+            DispatchQueue.main.async { self?.uploads.networkChanged(isAvailable: available) }
+        }
+        pathMonitor.start(queue: .global(qos: .utility))
+
+        let lost = uploads.resumeAfterLaunch()
+        guard !lost.isEmpty else { return }
+        showAlert(title: "Uploads dropped",
+                  message: """
+                  These recordings were waiting to be uploaded, but their audio file is gone:
+
+                  \(lost.joined(separator: "\n"))
+                  """)
     }
 
     // MARK: - Helpers
 
-    private func setIcon(_ state: IconState) {
+    /// The flow knows whether a meeting is being recorded or configured; the
+    /// queue knows whether an earlier one is still on its way. Recording wins.
+    private func refreshIcon() {
+        let state: IconState
+        switch flow.state {
+        case .recording: state = .recording
+        case .configuring: state = .uploading
+        case .idle, .failed: state = uploads.activity == .idle ? .idle : .uploading
+        }
         statusItem.button?.image = StatusIcon.image(for: state)
     }
 

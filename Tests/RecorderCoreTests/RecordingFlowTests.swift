@@ -49,12 +49,19 @@ private func flowAwaitingConfiguration() -> RecordingFlow {
     #expect(flow.state == .configuring(startedAt: fixedDate))
 }
 
-@Test func confirmingUploadsWhatWasRecorded() {
+@Test func confirmingHandsTheRecordingToTheUploadQueue() {
     let flow = flowAwaitingConfiguration()
     let configuration = makeConfiguration()
 
-    #expect(flow.handle(.configurationConfirmed(configuration)) == [.upload(configuration)])
-    #expect(flow.state == .uploading(configuration))
+    #expect(flow.handle(.configurationConfirmed(configuration)) == [.enqueueUpload(configuration), .setIcon(.idle)])
+    // The upload runs in the background; the flow is free for the next meeting.
+    #expect(flow.state == .idle)
+}
+
+@Test func aClickAfterConfirmingStartsTheNextMeeting() {
+    let flow = flowAwaitingConfiguration()
+    _ = flow.handle(.configurationConfirmed(makeConfiguration()))
+    #expect(flow.handle(.iconClicked) == [.startCapture, .setIcon(.recording), .setESP32Recording(true)])
 }
 
 @Test func cancellingThrowsTheRecordingAway() {
@@ -67,41 +74,14 @@ private func flowAwaitingConfiguration() -> RecordingFlow {
     let flow = flowAwaitingConfiguration()
 
     #expect(flow.handle(.captureFailed("The sound could not be recorded.")) == [.setIcon(.idle)])
-    #expect(flow.state == .failed(nil, message: "The sound could not be recorded."))
-    // Nothing to retry: there is no configuration and no usable recording.
-    #expect(flow.handle(.retryRequested) == [])
+    #expect(flow.state == .failed(message: "The sound could not be recorded."))
+    // Nothing is configured or uploaded from here.
+    #expect(flow.handle(.configurationConfirmed(makeConfiguration())) == [])
 }
 
-@Test func aClickDuringUploadDoesNothing() {
+@Test func dismissingACaptureFailureMovesTheFileToTheSaveFolder() {
     let flow = flowAwaitingConfiguration()
-    _ = flow.handle(.configurationConfirmed(makeConfiguration()))
-    #expect(flow.handle(.iconClicked) == [])
-}
-
-@Test func successDeletesTheLocalFile() {
-    let flow = flowAwaitingConfiguration()
-    _ = flow.handle(.configurationConfirmed(makeConfiguration()))
-
-    #expect(flow.handle(.uploadSucceeded) == [.deleteFile, .setIcon(.idle)])
-    #expect(flow.state == .idle)
-}
-
-@Test func failureKeepsTheFileAndAllowsARetry() {
-    let flow = flowAwaitingConfiguration()
-    let configuration = makeConfiguration()
-    _ = flow.handle(.configurationConfirmed(configuration))
-
-    #expect(flow.handle(.uploadFailed("Network unreachable")) == [.setIcon(.idle)])
-    #expect(flow.state == .failed(configuration, message: "Network unreachable"))
-
-    #expect(flow.handle(.retryRequested) == [.setIcon(.uploading), .upload(configuration)])
-    #expect(flow.state == .uploading(configuration))
-}
-
-@Test func dismissingAFailureMovesTheFileToTheSaveFolder() {
-    let flow = flowAwaitingConfiguration()
-    _ = flow.handle(.configurationConfirmed(makeConfiguration()))
-    _ = flow.handle(.uploadFailed("boom"))
+    _ = flow.handle(.captureFailed("boom"))
 
     #expect(flow.handle(.failureDismissed) == [.moveFileToSaveFolder, .setIcon(.idle)])
     #expect(flow.state == .idle)

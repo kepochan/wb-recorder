@@ -26,23 +26,19 @@ public enum RecordingState: Equatable {
     /// Capturing. The configuration is asked for once the recording stops.
     case recording(startedAt: Date)
     /// Capture is over and the configuration window is up; nothing is being
-    /// recorded any more, and nothing has been uploaded yet.
+    /// recorded any more, and nothing has been handed to the upload queue yet.
     case configuring(startedAt: Date)
-    case uploading(RecordingConfiguration)
-    /// The configuration is absent when the capture itself failed, since the
-    /// user never got to fill it in.
-    case failed(RecordingConfiguration?, message: String)
+    /// The capture could not be finalised: there is nothing to configure or
+    /// upload, only perhaps a partial file to keep.
+    case failed(message: String)
 }
 
 public enum RecordingEvent {
     case iconClicked
     case configurationConfirmed(RecordingConfiguration)
     case configurationCancelled
-    case uploadSucceeded
-    case uploadFailed(String)
     /// The capture could not be finalised, so there is nothing to configure.
     case captureFailed(String)
-    case retryRequested
     case failureDismissed
 }
 
@@ -50,9 +46,10 @@ public enum RecordingEffect: Equatable {
     case startCapture
     case stopCapture
     case discardFile
-    case deleteFile
     case moveFileToSaveFolder
-    case upload(RecordingConfiguration)
+    /// Hands the file to the upload queue, which sends it in the background
+    /// and owns it from then on.
+    case enqueueUpload(RecordingConfiguration)
     case showConfigurationWindow(startedAt: Date)
     case focusConfigurationWindow
     case setIcon(IconState)
@@ -84,28 +81,16 @@ public final class RecordingFlow {
             return [.focusConfigurationWindow]
 
         case let (.configuring, .configurationConfirmed(configuration)):
-            state = .uploading(configuration)
-            return [.upload(configuration)]
+            state = .idle
+            return [.enqueueUpload(configuration), .setIcon(.idle)]
 
         case (.configuring, .configurationCancelled):
             state = .idle
             return [.discardFile, .setIcon(.idle)]
 
         case let (.configuring, .captureFailed(message)):
-            state = .failed(nil, message: message)
+            state = .failed(message: message)
             return [.setIcon(.idle)]
-
-        case (.uploading, .uploadSucceeded):
-            state = .idle
-            return [.deleteFile, .setIcon(.idle)]
-
-        case let (.uploading(configuration), .uploadFailed(message)):
-            state = .failed(configuration, message: message)
-            return [.setIcon(.idle)]
-
-        case let (.failed(configuration?, _), .retryRequested):
-            state = .uploading(configuration)
-            return [.setIcon(.uploading), .upload(configuration)]
 
         case (.failed, .failureDismissed):
             state = .idle
