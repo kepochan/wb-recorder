@@ -42,9 +42,10 @@ Privacy & Security.
 - **Left-click again**: stops the recording, then asks for the details —
   workspace, title, meeting date and time, language, visibility, tags. The
   meeting date defaults to the instant the recording *started*, not the instant
-  it stopped. The language starts on French. Visibility offers two tabs, **Only
-  me** (the default) and **Share with team** (workspace, read and edit); the
-  chevron next to them lists every other mode.
+  it stopped. The language starts on French. Visibility offers three tabs: **Only me**
+  (the default), **Share with team** (workspace members can edit) and **Anyone
+  with the link** (view and edit, even signed out). Read-only access is given
+  per person, by inviting them to the note from Whiteboard.
 - **OK** hands the recording to the upload queue. Uploads run in the
   background, one at a time, in pieces: a cut connection resumes where the
   server stopped, and a quit or a crash resumes at the next launch. The window

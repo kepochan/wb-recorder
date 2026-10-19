@@ -58,7 +58,18 @@ public struct PendingUploadStore: Sendable {
         // Entry by entry: one that no longer decodes must not take the
         // others, and their recordings, down with it.
         let entries = (try? Self.decoder.decode([FailableEntry].self, from: data)) ?? []
-        return entries.compactMap(\.upload)
+        return entries.compactMap(\.upload).map(Self.withCurrentSharingMode)
+    }
+
+    /// Every entry, session or not: a live session already holds its mode on
+    /// the server, and a purged one means a fresh `start`, which would refuse
+    /// a 1.1.0 token with a 400.
+    private static func withCurrentSharingMode(_ upload: PendingUpload) -> PendingUpload {
+        var configuration = upload.configuration
+        configuration.sharingMode = Preferences.currentSharingMode(configuration.sharingMode)
+        return PendingUpload(id: upload.id, fileName: upload.fileName, size: upload.size,
+                             configuration: configuration, uploadId: upload.uploadId,
+                             chunkSize: upload.chunkSize, completeSent: upload.completeSent)
     }
 
     private struct FailableEntry: Decodable {

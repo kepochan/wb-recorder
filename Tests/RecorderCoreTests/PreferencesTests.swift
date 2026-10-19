@@ -15,21 +15,20 @@ private func makePreferences() -> Preferences {
     #expect(preferences.esp32Host == nil)
     #expect(preferences.saveFolder.path.hasSuffix("/Downloads"))
     #expect(Preferences.languages == ["auto", "fr", "en"])
-    #expect(Preferences.sharingModes == ["private", "protected", "limited", "editable", "public", "open-bar"])
-    #expect(Preferences.quickSharingModes.allSatisfy(Preferences.sharingModes.contains))
+    #expect(Preferences.sharingModes == ["private", "protected", "open-bar"])
 }
 
 @Test func valuesSurviveAWriteAndRead() {
     let preferences = makePreferences()
     preferences.lastWorkspaceID = "uuid-1"
     preferences.lastLanguage = "fr"
-    preferences.lastSharingMode = "public"
+    preferences.lastSharingMode = "open-bar"
     preferences.apiBaseURL = URL(string: "http://localhost:3000")!
     preferences.esp32Host = "10.93.1.238"
 
     #expect(preferences.lastWorkspaceID == "uuid-1")
     #expect(preferences.lastLanguage == "fr")
-    #expect(preferences.lastSharingMode == "public")
+    #expect(preferences.lastSharingMode == "open-bar")
     #expect(preferences.apiBaseURL.absoluteString == "http://localhost:3000")
     #expect(preferences.esp32Host == "10.93.1.238")
 }
@@ -55,13 +54,30 @@ private func makePreferences() -> Preferences {
     }
     for mode in Preferences.sharingModes {
         #expect(Preferences.sharingModeName(mode) != mode)
+        #expect(!Preferences.sharingModeHelp(mode).isEmpty)
     }
     #expect(Preferences.languageName("fr") == "French")
-    #expect(Preferences.sharingModeName("open-bar").hasPrefix("Public"))
-    // An unknown value coming back from a future API still shows as itself
-    // rather than as an empty picker row.
+    #expect(Preferences.sharingModeName("private") == "Only me")
+    #expect(Preferences.sharingModeName("protected") == "Share with team")
+    #expect(Preferences.sharingModeName("open-bar") == "Anyone with the link")
+    // An unknown value still shows as itself rather than as an empty tab.
     #expect(Preferences.sharingModeName("teams-only") == "teams-only")
-    #expect(Preferences.sharingModeShortName("private") == "Only me")
-    #expect(Preferences.sharingModeShortName("editable") == "Share with team")
-    #expect(Preferences.sharingModeShortName("public") == Preferences.sharingModeName("public"))
+}
+
+@Test func aModeFromBeforeTheThreeModesIsConvertedLikeTheServerDoes() {
+    // Same table as the backend's `fromLegacySharingMode` (WB #1125): the
+    // server now refuses the old tokens with a 400 at `start`.
+    #expect(Preferences.currentSharingMode("limited") == "protected")
+    #expect(Preferences.currentSharingMode("editable") == "protected")
+    #expect(Preferences.currentSharingMode("public") == "private")
+    #expect(Preferences.currentSharingMode("teams-only") == "private")
+    for mode in Preferences.sharingModes {
+        #expect(Preferences.currentSharingMode(mode) == mode)
+    }
+}
+
+@Test func aRememberedOldModeComesBackConverted() {
+    let suite = UserDefaults(suiteName: "wbr-tests-\(UUID().uuidString)")!
+    suite.set("editable", forKey: "lastSharingMode")
+    #expect(Preferences(defaults: suite).lastSharingMode == "protected")
 }

@@ -20,6 +20,26 @@ private func makeStore() -> (PendingUploadStore, URL) {
     #expect(store.load() == [first, second])
 }
 
+@Test func aQueuedOldModeIsConvertedOnLoad() throws {
+    // A 1.1.0 queue may hold the old tokens. With or without a session: a
+    // purged one means a fresh `start`, which would refuse them with a 400.
+    let (store, directory) = makeStore()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    var configuration = uploadTestConfiguration()
+    configuration.sharingMode = "editable"
+    let waiting = PendingUpload(fileName: "a.m4a", size: 10, configuration: configuration)
+    configuration.sharingMode = "public"
+    let started = PendingUpload(fileName: "b.m4a", size: 20, configuration: configuration,
+                                uploadId: "up-2", chunkSize: 4_194_304)
+
+    try store.save([waiting, started])
+    let loaded = store.load()
+
+    #expect(loaded.map(\.configuration.sharingMode) == ["protected", "private"])
+    #expect(loaded.map(\.uploadId) == [nil, "up-2"])
+    #expect(loaded.map(\.id) == [waiting.id, started.id])
+}
+
 @Test func noFileMeansAnEmptyQueue() {
     let (store, directory) = makeStore()
     defer { try? FileManager.default.removeItem(at: directory) }

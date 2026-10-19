@@ -2,10 +2,9 @@ import Foundation
 
 public final class Preferences {
     public static let languages = ["auto", "fr", "en"]
-    public static let sharingModes = ["private", "protected", "limited", "editable", "public", "open-bar"]
-    /// The two choices made nearly every time, offered as tabs; the others stay
-    /// one click away behind the chevron.
-    public static let quickSharingModes = ["private", "editable"]
+    /// The only three the API accepts since WB #1125; anything else is a 400
+    /// at `start`. Read-only access now exists only as a per-person invite.
+    public static let sharingModes = ["private", "protected", "open-bar"]
     public static let defaultAPIBaseURL = URL(string: "https://whiteboard-api.kepochan.com")!
 
     /// French label for a language code. The raw code is what the API receives;
@@ -19,29 +18,37 @@ public final class Preferences {
         }
     }
 
-    /// French label for a sharing mode, phrased as what the choice does rather
-    /// than as a translation of the API token — `limited` or `open-bar` mean
-    /// nothing to someone who has not read the Whiteboard documentation. The
-    /// raw token is still what gets sent.
+    /// Tab label for a sharing mode, phrased as what the choice does rather
+    /// than as the API token — `open-bar` means nothing to someone who has not
+    /// read the Whiteboard documentation. The raw token is still what gets sent.
     public static func sharingModeName(_ mode: String) -> String {
         switch mode {
-        case "private": return "Private — only me"
-        case "protected": return "Workspace — read"
-        case "limited": return "Workspace — by invitation"
-        case "editable": return "Workspace — read and edit"
-        case "public": return "Public — read with the link"
-        case "open-bar": return "Public — read and edit with the link"
+        case "private": return "Only me"
+        case "protected": return "Share with team"
+        case "open-bar": return "Anyone with the link"
         default: return mode
         }
     }
 
-    /// Short tab label for a quick sharing mode; anything else keeps its full
-    /// label.
-    public static func sharingModeShortName(_ mode: String) -> String {
+    /// The line under the tabs, worded as the Whiteboard web app words it.
+    public static func sharingModeHelp(_ mode: String) -> String {
         switch mode {
-        case "private": return "Only me"
-        case "editable": return "Share with team"
-        default: return sharingModeName(mode)
+        case "private": return "You and the people you invite"
+        case "protected": return "Workspace members can edit, plus the people you invite"
+        case "open-bar": return "Anyone with the link can view and edit, even signed out"
+        default: return ""
+        }
+    }
+
+    /// A token from before the three modes, as a 1.1.0 left it in the
+    /// preferences or the queue, turned into one the API accepts. Same table
+    /// as the backend's `fromLegacySharingMode`: nothing becomes more open
+    /// than it was, so `public` falls back to `private`.
+    public static func currentSharingMode(_ mode: String) -> String {
+        switch mode {
+        case _ where sharingModes.contains(mode): return mode
+        case "limited", "editable": return "protected"
+        default: return "private"
         }
     }
 
@@ -72,7 +79,7 @@ public final class Preferences {
     }
 
     public var lastSharingMode: String {
-        get { defaults.string(forKey: "lastSharingMode") ?? "private" }
+        get { Self.currentSharingMode(defaults.string(forKey: "lastSharingMode") ?? "private") }
         set { defaults.set(newValue, forKey: "lastSharingMode") }
     }
 
